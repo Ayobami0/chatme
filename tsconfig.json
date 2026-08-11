@@ -3,11 +3,41 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./src/*"
+      "@config": [
+        "./src/core/config/index.ts"
       ],
-      "@/assets/*": [
-        "./assets/*"
+      "@constants": [
+        "./src/shared/constants.ts"
+      ],
+      "@components": [
+        "./src/shared/components/index.ts"
+      ],
+      "@logging": [
+        "./src/core/logging/index.ts"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@utils/*": [
+        "./src/shared/utils/*"
+      ],
+      "@svg/*": [
+        "./src/shared/components/svg/*"
+      ],
+      "@network/*": [
+        "./src/core/network/*"
+      ],
+      "@theme/*": [
+        "./src/shared/theme/*"
+      ],
+      "@assets/*": [
+        "./src/assets/*"
+      ],
+      "@features/*": [
+        "./src/features/*"
+      ],
+      "@services/*": [
+        "./src/services/*"
       ]
     }
   },
@@ -15,6 +45,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "metro.config.js",
+    "tailwind.config.js",
+    "nativewind-env.d.ts"
   ]
 }

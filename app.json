@@ -8,7 +8,8 @@
     "scheme": "chatme",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.ilerioluwa.chatme"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,13 +18,25 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.ilerioluwa.chatme"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./src/assets/fonts/SF-Pro/SFProDisplay-Regular.otf",
+            "./src/assets/fonts/SF-Pro/SFProDisplay-Bold.otf",
+            "./src/assets/fonts/SF-Pro/SFProDisplay-Medium.otf",
+            "./src/assets/fonts/SF-Pro/SFProDisplay-SemiBold.otf"
+          ]
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -32,7 +45,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
