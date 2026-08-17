@@ -3,8 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@config": [
-        "./src/core/config/index.ts"
+      "@core/*": [
+        "./src/core/*"
       ],
       "@constants": [
         "./src/shared/constants.ts"
@@ -23,9 +23,6 @@
       ],
       "@svg/*": [
         "./src/shared/components/svg/*"
-      ],
-      "@network/*": [
-        "./src/core/network/*"
       ],
       "@theme/*": [
         "./src/shared/theme/*"
@@ -49,5 +46,5 @@
     "metro.config.js",
     "tailwind.config.js",
     "nativewind-env.d.ts"
-  ]
+, "src/core/query/index.t"  ]
 }

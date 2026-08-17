@@ -78,7 +78,7 @@ export function AppButton({
       )}
     >
       {isLoading ? (
-        <ActivityIndicator />
+        <ActivityIndicator className="text-primary-foreground" />
       ) : (
         <>
           {icon}

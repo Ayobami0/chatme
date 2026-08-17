@@ -29,6 +29,13 @@ function useSlideScale(
   index: number,
 ) {
   return useAnimatedStyle(() => {
+    if (height <= 0) {
+      return {
+        opacity: 1,
+        transform: [{ scale: 1 }],
+      };
+    }
+
     const distance = Math.abs(
       scrollY.value - height * index,
     );
@@ -273,43 +280,55 @@ function Slide2({
     1,
   );
 
-  const firstChatStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      scrollY.value,
-      [height * 0.4, height * 0.7],
-      [0, 1],
-      Extrapolation.CLAMP,
-    ),
-    transform: [
-      {
-        scale: interpolate(
-          scrollY.value,
-          [height * 0.4, height * 0.7],
-          [0.7, 1],
-          Extrapolation.CLAMP,
-        ),
-      },
-    ],
-  }));
+  const firstChatStyle = useAnimatedStyle(() => {
+    if (height <= 0) {
+      return { opacity: 0, transform: [{ scale: 0.7 }] };
+    }
 
-  const secondChatStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      scrollY.value,
-      [height * 0.6, height],
-      [0, 1],
-      Extrapolation.CLAMP,
-    ),
-    transform: [
-      {
-        scale: interpolate(
-          scrollY.value,
-          [height * 0.6, height],
-          [0.7, 1],
-          Extrapolation.CLAMP,
-        ),
-      },
-    ],
-  }));
+    return {
+      opacity: interpolate(
+        scrollY.value,
+        [height * 0.4, height * 0.7],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
+      transform: [
+        {
+          scale: interpolate(
+            scrollY.value,
+            [height * 0.4, height * 0.7],
+            [0.7, 1],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+
+  const secondChatStyle = useAnimatedStyle(() => {
+    if (height <= 0) {
+      return { opacity: 0, transform: [{ scale: 0.7 }] };
+    }
+
+    return {
+      opacity: interpolate(
+        scrollY.value,
+        [height * 0.6, height],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
+      transform: [
+        {
+          scale: interpolate(
+            scrollY.value,
+            [height * 0.6, height],
+            [0.7, 1],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
 
   return (
     <View
