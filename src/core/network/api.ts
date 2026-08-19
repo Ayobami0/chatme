@@ -11,7 +11,6 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 
 export const apiClient = axios.create({
   baseURL: AppConfig.apiBaseUrl,
-  timeout: 30000,
 });
 
 const publicEndpoints = [
