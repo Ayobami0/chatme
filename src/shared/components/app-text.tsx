@@ -38,6 +38,7 @@ const appTextVariants = cva("", {
       placeholder: "text-placeholder",
 
       primary: "text-primary",
+      onPrimary: "text-primary-foreground",
       muted: "text-muted-foreground",
 
       success: "text-success",

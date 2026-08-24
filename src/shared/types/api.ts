@@ -1,3 +1,14 @@
+import { ConversationModel, ConversationUser } from "./models";
+
+// PAGINATION
+interface PaginatedRequest<T> {
+  items: T[];
+  pageInfo: {
+    nextCursor: string;
+    hasNextPage: boolean;
+  };
+}
+
 // AUTH
 export interface PhoneVerificationRequest {
   phoneNumber: string;
@@ -53,4 +64,29 @@ export interface UserGetResponse {
 export interface UserUpdateRequest {
   displayName?: string;
   avatarUrl?: string;
+}
+
+// CONVERSATIONS
+export type ConversationsGetResponse = PaginatedRequest<ConversationModel>;
+
+export type ConversationGetResponse = ConversationModel;
+
+export interface ConversationPutRequest {
+  participantId: "7d444840-9dc0-11d1-b245-5ffdce74fad2";
+}
+
+export type ConversationPutResponse = ConversationGetResponse;
+
+// Discovery
+export interface MatchContactsRequest {
+  phoneNumbers: string[];
+}
+
+export interface MatchContactsResponse {
+  matches: [
+    {
+      matchedPhoneNumber: string;
+      user: ConversationUser;
+    },
+  ];
 }

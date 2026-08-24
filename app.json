@@ -46,6 +46,12 @@
       ],
       "expo-router",
       [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow $(PRODUCT_NAME) to access your contacts."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#F8FFFA",

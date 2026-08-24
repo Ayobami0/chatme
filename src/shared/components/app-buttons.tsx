@@ -14,7 +14,7 @@ const appButtonVariants = cva(
     variants: {
       variant: {
         primary: "bg-primary",
-        secondary: "bg-secondary border border-border",
+        secondary: "bg-primary-50",
         tertiary: "bg-transparent",
       },
 
@@ -37,7 +37,7 @@ const appButtonTextVariants = cva(
     variants: {
       variant: {
         primary: "text-primary-foreground",
-        secondary: "text-secondary-foreground",
+        secondary: "text-primary",
         tertiary: "text-primary",
       },
 

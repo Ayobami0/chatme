@@ -1,7 +1,6 @@
 import { OnboardingScreen } from "@features/auth/screens";
 import { useSessionStore } from "@shared/store/session";
 import { Redirect } from "expo-router";
-import {log} from "@core/logging";
 
 export default function Index() {
   const {
@@ -14,7 +13,7 @@ export default function Index() {
   if (onboardingStatus === "complete") {
     if (authStatus === "authenticated") {
       if (profileStatus === "complete") {
-        return <Redirect href="/home" />;
+        return <Redirect href="/chats" />;
       }
       const stage = profileFlowStage === "unknown" ? "name" : profileFlowStage;
       return <Redirect href={`/profile-${stage}`} />;

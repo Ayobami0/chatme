@@ -11,8 +11,8 @@ export const colorschemes = {
     "--color-secondary": AppColor.primary100,
     "--color-secondary-foreground": AppColor.primary800,
 
-    "--color-muted": AppColor.neutral100,
-    "--color-muted-foreground": AppColor.neutral500,
+    "--color-muted": AppColor.divider,
+    "--color-muted-foreground": AppColor.neutral300,
     "--color-border": AppColor.neutral300,
     "--color-success": AppColor.success,
     "--color-warning": AppColor.warning,
@@ -58,14 +58,14 @@ export const colorschemes = {
 
     "--color-surface": AppColor.neutral800,
 
-    "--color-primary": AppColor.primary400,
+    "--color-primary": AppColor.neutral700,
     "--color-primary-foreground": AppColor.white,
 
     "--color-secondary": AppColor.primary800,
     "--color-secondary-foreground": AppColor.primary100,
 
-    "--color-muted": AppColor.neutral800,
-    "--color-muted-foreground": AppColor.neutral300,
+    "--color-muted": AppColor.neutral500,
+    "--color-muted-foreground": AppColor.neutral200,
 
     "--color-border": AppColor.neutral300,
 

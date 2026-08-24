@@ -57,7 +57,7 @@ export default function ProfileImageScreen() {
           <AppButton
             className="w-full"
             onPress={() => {
-              imageState === "idle" ? showPickerModal() : router.dismissTo("/home");
+              imageState === "idle" ? showPickerModal() : router.dismissTo("/chats");
             }}
           >
             {imageState === "idle" ? "Upload Photo" : "Next"}

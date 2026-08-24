@@ -13,7 +13,7 @@ export function AppHeader(props: AppHeaderProps) {
       {onBack && (
         <TouchableOpacity
           activeOpacity={0.8}
-          className="items-center justify-center border border-divider size-10 rounded-xl mt-3"
+          className="items-center justify-center border-hairline border-border size-10 rounded-xl mt-3"
           onPress={onBack}
         >
           <OutlineCheveronLeftSvg height={20} width={20} />

@@ -13,3 +13,4 @@ export * from "./app-text";
 export * from "./app-toast";
 export * from "./app-media-upload";
 export * from "./app-blur-view";
+export * from "./app-fullscreen-modal";

@@ -38,7 +38,11 @@ export default function OtpScreen() {
             refreshToken: data.refreshToken,
             user: data.user,
           });
-          router.push("/profile-name");
+          if (data.user.profileComplete) {
+            router.push('/chats')
+          } else {
+            router.push("/profile-name");
+          }
           setStage("name");
         },
         onError: () => {

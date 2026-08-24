@@ -16,11 +16,14 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  configureReanimatedLogger, ReanimatedLogLevel
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
 } from "react-native-reanimated";
 import { runOnJS } from "react-native-worklets";
-import { AppColor } from "@shared/theme/color";
+import { AppColor, withOpacity } from "@shared/theme/color";
 import { AnyFieldApi } from "@tanstack/react-form";
+import { useColorScheme } from "nativewind";
+import { cn } from "@shared/utils/ui";
 
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
@@ -31,9 +34,44 @@ type AppTextFieldProps = {
   label?: string;
   icon?: (props: { isFocused?: boolean }) => React.ReactNode;
   field?: AnyFieldApi;
+  containerStyle?: StyleProps;
+  containerClass?: string;
 } & TextInputProps;
 
 type AppControlledTextFieldProps = {} & AppTextFieldProps;
+
+export function AppBaseTextField(props: AppTextFieldProps) {
+  const { icon, containerStyle, containerClass, ...rest } = props;
+  const { colorScheme } = useColorScheme();
+
+  return (
+    <View
+      className={cn("flex-row gap-2 border-[0.5px] rounded-xl items-center pl-3", containerClass)}
+      style={containerStyle}
+    >
+      {icon && <View>{icon({ isFocused: false })}</View>}
+      <TextInput
+        placeholder="Search chat, people and more..."
+        cursorColor={colorScheme === "dark" ? AppColor.neutral200 : AppColor.white}
+        selectionColor={colorScheme === "dark" ? AppColor.neutral200 : AppColor.white}
+        style={{
+          ...rest.style,
+          color:
+            colorScheme === "dark"
+              ? AppColor.white
+              : AppColor.neutral900,
+        }}
+        className="py-3"
+        placeholderTextColor={
+          colorScheme === "dark"
+            ? AppColor.neutral200
+            : withOpacity(AppColor.white, 0.9)
+        }
+        {...rest}
+      />
+    </View>
+  );
+}
 
 export function AppTextField(props: AppTextFieldProps) {
   const {
@@ -44,6 +82,8 @@ export function AppTextField(props: AppTextFieldProps) {
     onFocus,
     onBlur,
     keyboardType = "default",
+    className,
+    value,
     ...rest
   } = props;
 
@@ -95,7 +135,7 @@ export function AppTextField(props: AppTextFieldProps) {
       <View
         className={`gap-3 flex-row border-hairline border-border rounded-2xl py-[18px] transition-colors duration-200 px-5 ${
           isFocused ? "border-focus bg-focus-background" : ""
-        } ${hasError ? "border-danger bg-red-50" : ""}`}
+        } ${hasError ? "border-danger bg-red-50" : ""} ${className ?? ""}`}
       >
         {Icon && <Icon isFocused={isFocused} />}
 
@@ -105,7 +145,7 @@ export function AppTextField(props: AppTextFieldProps) {
           keyboardType={keyboardType}
           cursorColor={AppColor.primary400}
           selectionColor={AppColor.primary400}
-          value={field?.state.value ?? ""}
+          value={field?.state.value ?? value}
           onFocus={(e) => {
             setIsFocused(true);
             onFocus?.(e);
@@ -148,7 +188,9 @@ export function AppPhoneTextField(
   const { keyboardType, defaultCode, onCodeSelect, ...rest } = props;
 
   const [showPhoneSelector, setShowPhoneSelector] = useState(false);
-  const [countryCallCode, setCountryCallCode] = useState(defaultCode.countryCallCode);
+  const [countryCallCode, setCountryCallCode] = useState(
+    defaultCode.countryCallCode,
+  );
   const [countryCode, setCountryCode] = useState(defaultCode.countryCode);
 
   const opacity = useSharedValue(0.85);
