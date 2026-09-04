@@ -83,43 +83,13 @@ apiClient.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      const refreshToken = TokenManager.getRefreshToken();
-
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
+      const newTokens = await TokenManager.refreshToken();
+      if (newTokens?.accessToken) {
+        return apiClient(originalRequest);
       }
-
-      /**
-       * IMPORTANT:
-       *
-       * Use plain axios here rather than apiClient.
-       * Otherwise the refresh request itself would
-       * go through the 401 interceptor.
-       */
-      const response = await axios.post<VerifyPhoneVerificationResponse>(
-        `${AppConfig.apiBaseUrl}/auth/refresh`,
-        {
-          refreshToken,
-        },
-      );
-
-      const {
-        accessToken,
-        refreshToken: newRefreshToken,
-      } = response.data;
-
-      const storedTokens = {
-        accessToken,
-        refreshToken: newRefreshToken,
-      };
-
-      TokenManager.setTokens(storedTokens);
-
-      return apiClient(originalRequest);
+      return Promise.reject(error);
     } catch (refreshError) {
       log.error("→ TOKEN REFRESH ERROR", refreshError);
-      TokenManager.clearTokens();
-
       return Promise.reject(refreshError);
     }
   },

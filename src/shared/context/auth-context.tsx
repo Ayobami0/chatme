@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { AppSessionState } from "@shared/types/authState";
+import React, { createContext, useContext, useState } from "react";
+import { AppSessionState, StoredAuthTokens } from "@shared/types/authState";
 import { UserModel } from "@shared/types/models";
 import { TokenManager } from "@services/token-manager";
 import { AuthService } from "@services/auth";
@@ -9,6 +9,7 @@ import { useCacheStore } from "@shared/store/cache";
 interface AuthContextType extends AppSessionState {
   initialize: () => Promise<void>;
   logout: () => Promise<void>;
+  refreshTokens: () => Promise<StoredAuthTokens | undefined>;
   setAuthState: (props: {
     user: UserModel;
     refreshToken: string;
@@ -37,6 +38,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: undefined,
       profileStatus: "incomplete",
     }));
+  };
+
+  const refreshTokens = async () => {
+    return await TokenManager.refreshToken();
   };
 
   const initialize = async () => {
@@ -121,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...sessionState,
         initialize,
         logout,
+        refreshTokens,
         setAuthState,
       }}
     >

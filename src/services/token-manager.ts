@@ -1,10 +1,15 @@
+import axios from "axios";
+import { AppConfig } from "@core/config";
 import StorageService, { StorageKey } from "./storage";
 import { StoredAuthTokens } from "@shared/types/authState";
+import { VerifyPhoneVerificationResponse } from "@shared/types/api";
 
 let currentTokens: Partial<StoredAuthTokens> = {
   accessToken: undefined,
   refreshToken: undefined,
 };
+
+let refreshPromise: Promise<StoredAuthTokens | undefined> | null = null;
 
 export class TokenManager {
   static getAccessToken(): string | undefined {
@@ -34,6 +39,41 @@ export class TokenManager {
       currentTokens = saved;
     }
     return saved;
+  }
+
+  static async refreshToken(): Promise<StoredAuthTokens | undefined> {
+    if (refreshPromise) {
+      return refreshPromise;
+    }
+
+    const refreshToken = currentTokens.refreshToken;
+    if (!refreshToken) {
+      return undefined;
+    }
+
+    refreshPromise = (async () => {
+      try {
+        const response = await axios.post<VerifyPhoneVerificationResponse>(
+          `${AppConfig.apiBaseUrl}/auth/refresh`,
+          { refreshToken },
+        );
+
+        const newTokens: StoredAuthTokens = {
+          accessToken: response.data.accessToken,
+          refreshToken: response.data.refreshToken,
+        };
+
+        TokenManager.setTokens(newTokens);
+        return newTokens;
+      } catch (error) {
+        TokenManager.clearTokens();
+        return undefined;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+
+    return refreshPromise;
   }
 
   static clearTokens(): void {

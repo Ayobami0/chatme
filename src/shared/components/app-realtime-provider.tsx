@@ -72,17 +72,17 @@ export function AppRealtimeProvider({
     const onDisconnect = (reason: string) => {
       log.debug("disconnected from socket", { reason });
       setStatus("disconnected");
-      // if (reason === "io server disconnect") {
-      //   void refreshNow().catch(() => undefined);
-      // }
+      if (reason === "io server disconnect") {
+        void TokenManager.refreshToken().catch(() => undefined);
+      }
     };
     const onReconnectAttempt = () => setStatus("reconnecting");
     const onConnectError = (error: Error & { data?: { code?: string } }) => {
-      log.debug("disconnected from socket", { error});
+      log.debug("disconnected from socket", { error });
       setStatus("disconnected");
-      // if (error.data?.code === "AUTH_ACCESS_TOKEN_INVALID") {
-      //   void refreshNow().catch(() => undefined);
-      // }
+      if (error.data?.code === "AUTH_ACCESS_TOKEN_INVALID") {
+        void TokenManager.refreshToken().catch(() => undefined);
+      }
     };
     const bumpActivity = () => setActivityVersion((value) => value + 1);
     const pendingDeliveries = new Map<
