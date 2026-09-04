@@ -2,6 +2,7 @@ import { apiClient } from "@core/network/api";
 import {
   ConversationMessagePostRequest,
   ConversationMessageReadResponse,
+  ConversationReceiptsGetResponse,
   PaginatedResponse,
 } from "@shared/types/api";
 import { ConversationModel, MessageModel } from "@shared/types/models";
@@ -10,9 +11,12 @@ export class ConversationService {
   static async createOrUpdateConversation(
     paticipantID: string,
   ): Promise<ConversationModel> {
-    const response = await apiClient.post<ConversationModel>(`/conversations/direct`, {
-      participantId: paticipantID,
-    });
+    const response = await apiClient.post<ConversationModel>(
+      `/conversations/direct`,
+      {
+        participantId: paticipantID,
+      },
+    );
     return response.data;
   }
 
@@ -38,11 +42,11 @@ export class ConversationService {
 
   static async sendMessage(
     conversationID: string,
-    data: ConversationMessagePostRequest
+    data: ConversationMessagePostRequest,
   ): Promise<MessageModel> {
     const response = await apiClient.post<MessageModel>(
       `/conversations/${conversationID}/messages`,
-      data
+      data,
     );
     return response.data;
   }
@@ -74,7 +78,7 @@ export class ConversationService {
       `/conversations/${conversationID}/receipts/delivered`,
       {
         throughMessageId,
-      }
+      },
     );
     return response.data;
   }
@@ -87,7 +91,16 @@ export class ConversationService {
       `/conversations/${conversationID}/receipts/read`,
       {
         throughMessageId,
-      }
+      },
+    );
+    return response.data;
+  }
+
+  static async reconcileParticipantReadReceipts(
+    conversationID: string,
+  ): Promise<ConversationReceiptsGetResponse> {
+    const response = await apiClient.get<ConversationReceiptsGetResponse>(
+      `/conversations/${conversationID}/receipts`,
     );
     return response.data;
   }

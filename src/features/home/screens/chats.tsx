@@ -1,4 +1,4 @@
-import { AppView } from "@components";
+import { AppText, AppView } from "@components";
 import { FlatList, View } from "react-native";
 import { ChatsHeader } from "../components/chats-header";
 import { useEffect, useState } from "react";
@@ -52,6 +52,16 @@ export default function ChatsScreen() {
           data={conversations}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ConversationCard conversation={item} />}
+          contentContainerStyle={
+            conversations.length === 0
+              ? { flex: 1, justifyContent: "center", alignItems: "center" }
+              : undefined
+          }
+          ListEmptyComponent={
+            <AppText variant="body-md-medium" color="subtext">
+              No conversations yet
+            </AppText>
+          }
         />
 
         <FloatingActionButton

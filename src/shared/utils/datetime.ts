@@ -31,3 +31,21 @@ export function formatActiveDateTimeHumanReadable(
     return `Active ${diff.as("day").toFixed(0)} day${diff.as("day") >= 2 ? "s" : ""} ago`;
   }
 }
+
+export function formatMessageDateSeparator(date: string | Date): string {
+  const dt =
+    typeof date === "string"
+      ? DateTime.fromISO(date)
+      : DateTime.fromJSDate(date);
+  const now = DateTime.now();
+
+  if (dt.hasSame(now, "day")) {
+    return "Today";
+  }
+
+  if (dt.hasSame(now.minus({ days: 1 }), "day")) {
+    return "Yesterday";
+  }
+
+  return dt.toFormat("dd MMMM, yyyy");
+}

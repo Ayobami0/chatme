@@ -16,7 +16,10 @@ import {
 } from "@shared/components/svgs/icons";
 import { AppColor } from "@shared/theme/color";
 import { MessageModel } from "@shared/types/models";
-import { formatActiveDateTimeHumanReadable } from "@shared/utils/datetime";
+import {
+  formatActiveDateTimeHumanReadable,
+  formatMessageDateSeparator,
+} from "@shared/utils/datetime";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useColorScheme } from "nativewind";
@@ -366,6 +369,16 @@ function ChatBody(props: {
         : "success";
   };
 
+  if (combinedMessages.length === 0 && !typing) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <AppText variant="body-md-medium" color="subtext">
+          No messages yet
+        </AppText>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1">
       <Animated.ScrollView
@@ -373,13 +386,34 @@ function ChatBody(props: {
         contentContainerClassName="gap-3 py-4"
         showsVerticalScrollIndicator={false}
       >
-        {combinedMessages.map((message) => (
-          <ChatBubble
-            key={message.id}
-            message={message}
-            state={state(message.id)}
-          />
-        ))}
+        {combinedMessages.map((message, index) => {
+          const currentDateLabel = formatMessageDateSeparator(
+            message.createdAt,
+          );
+          const prevDateLabel =
+            index > 0
+              ? formatMessageDateSeparator(
+                  combinedMessages[index - 1].createdAt,
+                )
+              : null;
+
+          const showDateHeader = currentDateLabel !== prevDateLabel;
+
+          return (
+            <View key={message.id} className="gap-3">
+              {showDateHeader && (
+                <View className="items-center my-2">
+                  <View className="bg-muted px-3 py-1 rounded-full">
+                    <AppText size={12} color="onPrimary" variant="body-sm-medium">
+                      {currentDateLabel}
+                    </AppText>
+                  </View>
+                </View>
+              )}
+              <ChatBubble message={message} state={state(message.id)} />
+            </View>
+          );
+        })}
         {typing && <TypingChatBubble />}
       </Animated.ScrollView>
     </View>

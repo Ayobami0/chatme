@@ -1,8 +1,9 @@
 import { AppText } from "@components";
 import {
-  SolidCheckSvg,
-  SolidClockSvg,
-  SolidExclamationCircleSvg,
+  OutlineCheckSvg,
+  OutlineClockSvg,
+  OutlineDoubleCheckSvg,
+  OutlineExclamationCircleSvg,
 } from "@shared/components/svgs/icons";
 import { useAuth } from "@shared/context/auth-context";
 import { AppColor } from "@shared/theme/color";
@@ -10,7 +11,7 @@ import { MessageModel } from "@shared/types/models";
 import { formatMessageTime } from "@shared/utils/datetime";
 import { View } from "react-native";
 
-export type MessageState = "pending" | "success" | "error";
+export type MessageState = "pending" | "success" | "error" | "viewed";
 
 type ChatBubbleProps = {
   message: MessageModel;
@@ -26,19 +27,23 @@ export function ChatBubble(props: ChatBubbleProps) {
     switch (state) {
       case "pending":
         return (
-          <SolidClockSvg width={16} height={16} color={AppColor.divider} />
+          <OutlineClockSvg width={16} height={16} color={AppColor.divider} />
         );
       case "success":
         return (
-          <SolidCheckSvg width={16} height={16} color={AppColor.blue400} />
+          <OutlineCheckSvg width={16} height={16} color={AppColor.blue400} />
         );
       case "error":
         return (
-          <SolidExclamationCircleSvg
+          <OutlineExclamationCircleSvg
             width={16}
             height={16}
             color={AppColor.danger}
           />
+        );
+      case "viewed":
+        return (
+          <OutlineDoubleCheckSvg width={16} height={16} color={AppColor.blue400} />
         );
     }
   };

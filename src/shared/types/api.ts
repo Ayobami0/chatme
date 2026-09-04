@@ -104,3 +104,21 @@ export interface MatchContactsResponse {
 }
 
 export type SearchContactsResponse = PaginatedResponse<ConversationUser>;
+
+export interface ConversationReceiptsGetResponse {
+  conversationId: string;
+  items: [
+    {
+      userId: string;
+      version: number;
+      delivered: {
+        messageId: string;
+        at: string;
+      };
+      read: {
+        messageId: string;
+        at: string;
+      };
+    },
+  ];
+}
