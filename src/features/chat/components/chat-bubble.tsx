@@ -11,7 +11,14 @@ import { MessageModel } from "@shared/types/models";
 import { formatMessageTime } from "@shared/utils/datetime";
 import { View } from "react-native";
 
-export type MessageState = "pending" | "success" | "error" | "viewed";
+export type MessageState =
+  | "pending"
+  | "sent"
+  | "success"
+  | "delivered"
+  | "read"
+  | "viewed"
+  | "error";
 
 type ChatBubbleProps = {
   message: MessageModel;
@@ -29,9 +36,19 @@ export function ChatBubble(props: ChatBubbleProps) {
         return (
           <OutlineClockSvg width={16} height={16} color={AppColor.divider} />
         );
+      case "sent":
       case "success":
         return (
-          <OutlineCheckSvg width={16} height={16} color={AppColor.blue400} />
+          <OutlineCheckSvg width={16} height={16} color={AppColor.divider} />
+        );
+      case "delivered":
+        return (
+          <OutlineDoubleCheckSvg width={16} height={16} color={AppColor.divider} />
+        );
+      case "read":
+      case "viewed":
+        return (
+          <OutlineDoubleCheckSvg width={16} height={16} color={AppColor.blue400} />
         );
       case "error":
         return (
@@ -40,10 +57,6 @@ export function ChatBubble(props: ChatBubbleProps) {
             height={16}
             color={AppColor.danger}
           />
-        );
-      case "viewed":
-        return (
-          <OutlineDoubleCheckSvg width={16} height={16} color={AppColor.blue400} />
         );
     }
   };

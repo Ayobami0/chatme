@@ -113,6 +113,31 @@ export default function ChatScreen(props: ChatScreenProps) {
     }
   }, [data, conversationId, setCacheMessages]);
 
+  const [receiptState, setReceiptState] = useState<{
+    deliveredMessageId?: string;
+    readMessageId?: string;
+  }>({});
+
+  const { data: receiptData } = useQuery({
+    queryKey: ["conversationReceipts", conversationId],
+    queryFn: () =>
+      ConversationService.reconcileParticipantReadReceipts(conversationId),
+  });
+
+  useEffect(() => {
+    if (receiptData?.items) {
+      const participantReceipt = receiptData.items.find(
+        (item) => item.userId === participantId,
+      );
+      if (participantReceipt) {
+        setReceiptState({
+          deliveredMessageId: participantReceipt.delivered?.messageId,
+          readMessageId: participantReceipt.read?.messageId,
+        });
+      }
+    }
+  }, [receiptData, participantId]);
+
   useEffect(() => {
     if (!socket || status !== "connected") return;
     let active = true;
@@ -147,6 +172,13 @@ export default function ChatScreen(props: ChatScreenProps) {
     };
     const onReceipt = (event: ReceiptUpdatedEventPayload) => {
       if (event.conversationId !== conversationId) return;
+      if (event.userId === participantId) {
+        setReceiptState((prev) => ({
+          deliveredMessageId:
+            event.delivered?.messageId ?? prev.deliveredMessageId,
+          readMessageId: event.read?.messageId ?? prev.readMessageId,
+        }));
+      }
     };
     const onPresence = (event: PresenceChangedEventPayload) => {
       if (
@@ -282,6 +314,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         messages={messages}
         failedMessages={failedMessages}
         pendingMessages={pendingMessages}
+        receiptState={receiptState}
         typing={otherPaticipantTyping}
         ref={scrollRef}
       />
@@ -338,6 +371,7 @@ function ChatBody(props: {
   messages: MessageModel[];
   failedMessages: Record<string, MessageModel>;
   pendingMessages: Record<string, MessageModel>;
+  receiptState: { deliveredMessageId?: string; readMessageId?: string };
   typing?: boolean;
   ref: React.RefObject<Animated.ScrollView | null>;
 }) {
@@ -345,9 +379,11 @@ function ChatBody(props: {
     messages,
     failedMessages,
     pendingMessages,
+    receiptState,
     typing = true,
     ref: scrollRef,
   } = props;
+  const { user } = useAuth();
 
   const combinedMessages = [
     ...messages,
@@ -361,12 +397,24 @@ function ChatBody(props: {
     }
   }, [combinedMessages]);
 
-  const state = (id: string): MessageState => {
-    return failedMessages[id]
-      ? "error"
-      : pendingMessages[id]
-        ? "pending"
-        : "success";
+  const getMessageState = (message: MessageModel, index: number): MessageState => {
+    if (failedMessages[message.id]) return "error";
+    if (pendingMessages[message.id]) return "pending";
+
+    const isMine = message.senderId === user?.id;
+    if (!isMine) return "sent";
+
+    const readIdx = receiptState.readMessageId
+      ? combinedMessages.findIndex((m) => m.id === receiptState.readMessageId)
+      : -1;
+    if (readIdx >= 0 && index <= readIdx) return "read";
+
+    const deliveredIdx = receiptState.deliveredMessageId
+      ? combinedMessages.findIndex((m) => m.id === receiptState.deliveredMessageId)
+      : -1;
+    if (deliveredIdx >= 0 && index <= deliveredIdx) return "delivered";
+
+    return "sent";
   };
 
   if (combinedMessages.length === 0 && !typing) {
@@ -410,7 +458,7 @@ function ChatBody(props: {
                   </View>
                 </View>
               )}
-              <ChatBubble message={message} state={state(message.id)} />
+              <ChatBubble message={message} state={getMessageState(message, index)} />
             </View>
           );
         })}
