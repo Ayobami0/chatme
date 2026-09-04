@@ -446,8 +446,8 @@ function ChatBody(props: {
           return (
             <View key={message.id} className="gap-3">
               {showDateHeader && (
-                <View className="items-center my-2">
-                  <View className="bg-muted px-3 py-1 rounded-full">
+                <View className="items-center my-1">
+                  <View className="bg-primary px-3 py-1 rounded-full">
                     <AppText size={12} color="onPrimary" variant="body-sm-medium">
                       {currentDateLabel}
                     </AppText>
