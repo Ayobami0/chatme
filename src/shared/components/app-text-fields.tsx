@@ -20,9 +20,8 @@ import Animated, {
   ReanimatedLogLevel,
 } from "react-native-reanimated";
 import { runOnJS } from "react-native-worklets";
-import { AppColor, withOpacity } from "@shared/theme/color";
+import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { AnyFieldApi } from "@tanstack/react-form";
-import { useColorScheme } from "nativewind";
 import { cn } from "@shared/utils/ui";
 
 configureReanimatedLogger({
@@ -43,7 +42,9 @@ type AppControlledTextFieldProps = {} & AppTextFieldProps;
 
 export function AppBaseTextField(props: AppTextFieldProps) {
   const { icon, containerStyle, containerClass, ...rest } = props;
-  const { colorScheme } = useColorScheme();
+  const primaryColor = useThemeColor("primary");
+  const titleColor = useThemeColor("title");
+  const placeholderColor = useThemeColor("placeholder");
 
   return (
     <View
@@ -52,21 +53,14 @@ export function AppBaseTextField(props: AppTextFieldProps) {
     >
       {icon && <View>{icon({ isFocused: false })}</View>}
       <TextInput
-        cursorColor={colorScheme === "dark" ? AppColor.neutral200 : AppColor.white}
-        selectionColor={colorScheme === "dark" ? AppColor.neutral200 : AppColor.white}
+        cursorColor={primaryColor}
+        selectionColor={primaryColor}
         style={{
+          color: titleColor,
           ...rest.style,
-          color:
-            colorScheme === "dark"
-              ? AppColor.white
-              : AppColor.neutral900,
         }}
         className="py-3"
-        placeholderTextColor={
-          colorScheme === "dark"
-            ? AppColor.neutral200
-            : withOpacity(AppColor.white, 0.9)
-        }
+        placeholderTextColor={placeholderColor}
         {...rest}
       />
     </View>
@@ -89,6 +83,8 @@ export function AppTextField(props: AppTextFieldProps) {
   } = props;
 
   const [isFocused, setIsFocused] = useState(false);
+  const primaryColor = useThemeColor("primary");
+  const placeholderColor = useThemeColor("placeholder");
 
   const hasError = Boolean(
     field?.state.meta.isTouched && field.state.meta.errors.length > 0,
@@ -135,7 +131,7 @@ export function AppTextField(props: AppTextFieldProps) {
       )}
 
       <View
-        className={`gap-3 flex-row border-hairline border-border rounded-2xl items-center transition-colors duration-200 px-5 h-14 ${
+        className={`gap-3 flex-row border-hairline border-border rounded-2xl items-center transition-colors duration-200 px-5 h-13 ${
           isFocused ? "border-focus bg-focus-background" : ""
         } ${hasError ? "border-danger bg-red-50" : ""} ${className ?? ""}`}
       >
@@ -143,10 +139,11 @@ export function AppTextField(props: AppTextFieldProps) {
 
         <TextInput
           {...rest}
-          className="flex-1"
+          className="flex-1 text-title"
+          placeholderTextColor={placeholderColor}
           keyboardType={keyboardType}
-          cursorColor={AppColor.primary400}
-          selectionColor={AppColor.primary400}
+          cursorColor={primaryColor}
+          selectionColor={primaryColor}
           value={field?.state.value ?? value}
           onFocus={(e) => {
             setIsFocused(true);
@@ -277,6 +274,8 @@ function PhoneSelector({
   style: StyleProps;
 }) {
   const [search, setSearch] = useState("");
+  const subtextColor = useThemeColor("subtext");
+  const placeholderColor = useThemeColor("placeholder");
 
   const countries = countryCodes
     .all()
@@ -290,11 +289,12 @@ function PhoneSelector({
       className="absolute max-h-96 max-w-80 left-0 right-0 top-full z-60 mt-1 rounded-2xl border-hairline border-border bg-background p-3"
     >
       <View className="mx-1 h-9 flex-row items-center gap-2">
-        <OutlineSearchSvg />
+        <OutlineSearchSvg color={subtextColor} />
 
         <TextInput
-          className="flex-1"
+          className="flex-1 text-title"
           placeholder="Search country..."
+          placeholderTextColor={placeholderColor}
           value={search}
           onChangeText={setSearch}
         />

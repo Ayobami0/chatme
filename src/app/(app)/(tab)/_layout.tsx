@@ -3,27 +3,28 @@ import {
   SolidCogSvg,
   SolidPhoneSvg,
 } from "@shared/components/svgs/icons";
-import { AppColor } from "@shared/theme/color";
+import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { Tabs } from "expo-router";
-import { useColorScheme } from "nativewind";
 
 export default function AppLayout() {
-  const { colorScheme } = useColorScheme();
+  const surfaceColor = useThemeColor("surface");
+  const primaryColor = useThemeColor("primary");
+  const subtextColor = useThemeColor("subtext");
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor:
-            colorScheme === "dark" ? AppColor.neutral700 : AppColor.white,
+          backgroundColor: surfaceColor,
           shadowColor: "#0B131B",
           shadowOffset: { width: 0, height: -6 },
           shadowOpacity: 0.06,
           shadowRadius: 24,
           elevation: 8,
         },
-        tabBarActiveTintColor: AppColor.primary300,
-        tabBarInactiveTintColor: AppColor.neutral300,
+        tabBarActiveTintColor: primaryColor,
+        tabBarInactiveTintColor: subtextColor,
         tabBarIconStyle: {
           fontSize: 28,
         },

@@ -14,7 +14,7 @@ import {
   SolidPhoneSvg,
   SolidVideoCameraSvg,
 } from "@shared/components/svgs/icons";
-import { AppColor } from "@shared/theme/color";
+import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { MessageModel } from "@shared/types/models";
 import {
   formatActiveDateTimeHumanReadable,
@@ -22,7 +22,6 @@ import {
 } from "@shared/utils/datetime";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useColorScheme } from "nativewind";
 import { Pressable, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import {
@@ -61,7 +60,7 @@ export default function ChatScreen(props: ChatScreenProps) {
     "online" | "offline" | undefined
   >("offline");
   const [otherPaticipantTyping, setOtherPaticipantTyping] = useState(false);
-  const { colorScheme } = useColorScheme();
+  const bgSvgColor = useThemeColor("muted");
 
   const loadMessagesForConversation = useCacheStore(
     (s) => s.loadMessagesForConversation,
@@ -292,16 +291,12 @@ export default function ChatScreen(props: ChatScreenProps) {
   return (
     <AppView
       enabled
-      className="p-0 relative"
+      className="p-0 relative bg-background"
       behavior="padding"
-      style={{
-        backgroundColor:
-          colorScheme === "dark" ? AppColor.neutral900 : AppColor.primary50,
-      }}
     >
       <ChatBg1Svg
         style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        color={colorScheme === "dark" ? AppColor.neutral700 : AppColor.white}
+        color={bgSvgColor}
       />
       <ChatHeader
         fullName={fullName ?? ""}
@@ -319,7 +314,6 @@ export default function ChatScreen(props: ChatScreenProps) {
         ref={scrollRef}
       />
       <ChatFooter
-        colorScheme={colorScheme ?? "light"}
         onSend={sendMessage}
         onFocus={() => {}}
       />
@@ -334,6 +328,8 @@ function ChatHeader(props: {
   date?: Date;
 }) {
   const presence = props.online ? "Online" : "Offline";
+  const iconColor = useThemeColor("primary-foreground");
+
   return (
     <View className="bg-primary pt-safe pb-4 px-6">
       <View className="flex-row items-center pt-2">
@@ -341,7 +337,7 @@ function ChatHeader(props: {
           <OutlineCheveronLeftSvg
             width={24}
             height={24}
-            color={AppColor.white}
+            color={iconColor}
           />
         </Pressable>
         {/* @ts-ignore */}
@@ -356,10 +352,10 @@ function ChatHeader(props: {
         </View>
         <View className="gap-5 flex-row">
           <Pressable>
-            <SolidVideoCameraSvg color={AppColor.white} />
+            <SolidVideoCameraSvg color={iconColor} />
           </Pressable>
           <Pressable>
-            <SolidPhoneSvg color={AppColor.white} />
+            <SolidPhoneSvg color={iconColor} />
           </Pressable>
         </View>
       </View>
@@ -469,12 +465,14 @@ function ChatBody(props: {
 }
 
 function ChatFooter(props: {
-  colorScheme: "light" | "dark";
   onSend: (text: string) => void;
   onFocus?: () => void;
 }) {
   const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
+  const clipIconColor = useThemeColor("subtext");
+  const sendIconColor = useThemeColor("primary-foreground");
+  const placeholderColor = useThemeColor("placeholder");
 
   return (
     <View
@@ -491,19 +489,16 @@ function ChatFooter(props: {
         <OutlinePaperClipSvg
           width={24}
           height={24}
-          color={
-            props.colorScheme === "dark"
-              ? AppColor.neutral100
-              : AppColor.neutral300
-          }
+          color={clipIconColor}
         />
       </Pressable>
       <TextInput
         onFocus={props.onFocus}
         ref={inputRef}
-        className="flex-1"
+        className="flex-1 text-title"
         onChangeText={setText}
         placeholder="Start typing..."
+        placeholderTextColor={placeholderColor}
       />
       <Pressable
         className="size-10 rounded-full bg-primary items-center justify-center"
@@ -514,7 +509,7 @@ function ChatFooter(props: {
           }
         }}
       >
-        <SolidPaperAirplaneSvg color={AppColor.white} />
+        <SolidPaperAirplaneSvg color={sendIconColor} />
       </Pressable>
     </View>
   );

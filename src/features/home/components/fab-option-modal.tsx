@@ -8,7 +8,7 @@ import { FC, useEffect } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { SvgProps } from "react-native-svg";
 import { FloatingActionButton } from "./fab";
-import { AppColor } from "@shared/theme/color";
+import { useThemeColor } from "@shared/hooks/use-theme-color";
 import {
   useAnimatedStyle,
   useSharedValue,
@@ -83,6 +83,7 @@ function FABOption({
   onPress: () => void;
 }) {
   const Icon = icon;
+  const primaryColor = useThemeColor("primary");
   return (
     <TouchableOpacity
       activeOpacity={0.8}
@@ -96,7 +97,7 @@ function FABOption({
         elevation: 2,
       }}
     >
-      <Icon color={AppColor.primary400} />
+      <Icon color={primaryColor} />
       <AppText variant="h6">{label}</AppText>
     </TouchableOpacity>
   );

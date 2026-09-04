@@ -6,7 +6,7 @@ import {
   OutlineExclamationCircleSvg,
 } from "@shared/components/svgs/icons";
 import { useAuth } from "@shared/context/auth-context";
-import { AppColor } from "@shared/theme/color";
+import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { MessageModel } from "@shared/types/models";
 import { formatMessageTime } from "@shared/utils/datetime";
 import { View } from "react-native";
@@ -30,32 +30,36 @@ export function ChatBubble(props: ChatBubbleProps) {
   const formatedDate = formatMessageTime(new Date(message.createdAt));
   const { user } = useAuth();
   const isMine = message.senderId === user?.id;
+  const subtextColor = useThemeColor("subtext");
+  const primaryColor = useThemeColor("primary");
+  const dangerColor = useThemeColor("danger");
+
   const StateIcon = () => {
     switch (state) {
       case "pending":
         return (
-          <OutlineClockSvg width={16} height={16} color={AppColor.divider} />
+          <OutlineClockSvg width={16} height={16} color={subtextColor} />
         );
       case "sent":
       case "success":
         return (
-          <OutlineCheckSvg width={16} height={16} color={AppColor.divider} />
+          <OutlineCheckSvg width={16} height={16} color={subtextColor} />
         );
       case "delivered":
         return (
-          <OutlineDoubleCheckSvg width={16} height={16} color={AppColor.divider} />
+          <OutlineDoubleCheckSvg width={16} height={16} color={subtextColor} />
         );
       case "read":
       case "viewed":
         return (
-          <OutlineDoubleCheckSvg width={16} height={16} color={AppColor.blue400} />
+          <OutlineDoubleCheckSvg width={16} height={16} color={primaryColor} />
         );
       case "error":
         return (
           <OutlineExclamationCircleSvg
             width={16}
             height={16}
-            color={AppColor.danger}
+            color={dangerColor}
           />
         );
     }

@@ -1,5 +1,5 @@
 import { SolidPlusSvg } from "@shared/components/svgs/icons";
-import { AppColor } from "@shared/theme/color";
+import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { cn } from "@shared/utils/ui";
 import { StyleSheet, TouchableOpacity, ViewProps } from "react-native";
 import Animated from "react-native-reanimated";
@@ -25,10 +25,11 @@ export function FloatingActionButton({
   className,
   ...rest
 }: FloatingActionButtonProps) {
+  const iconColor = useThemeColor("primary-foreground");
   return (
     <Animated.View
       {...rest}
-      className={cn("size-16 rounded-full bg-primary-400", className)}
+      className={cn("size-16 rounded-full bg-primary", className)}
       style={[styles.shadow, style]}
     >
       <TouchableOpacity
@@ -36,7 +37,7 @@ export function FloatingActionButton({
         activeOpacity={0.8}
         className="flex-1 items-center justify-center"
       >
-        <SolidPlusSvg color={AppColor.white} />
+        <SolidPlusSvg color={iconColor} />
       </TouchableOpacity>
     </Animated.View>
   );

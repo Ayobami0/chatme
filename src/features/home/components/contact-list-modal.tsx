@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import * as Contacts from "expo-contacts";
 import { useEffect, useRef, useState } from "react";
-import { AppColor } from "@shared/theme/color";
+import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { DiscoveryService } from "@services/discovery";
 import { formatPhoneNumber, validatePhoneNumber } from "@shared/utils/phone";
@@ -35,6 +35,7 @@ type AppContact = {
 
 export function ContactListModal(props: ContactListModalProps) {
   const { onClose } = props;
+  const closeIconColor = useThemeColor("foreground");
   const [contacts, setContacts] = useState<AppContact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [fetching, setFetching] = useState(false);
@@ -125,7 +126,7 @@ export function ContactListModal(props: ContactListModalProps) {
               className="absolute right-6 justify-center items-center"
               onPress={onClose}
             >
-              <SolidXSvg />
+              <SolidXSvg color={closeIconColor} />
             </Pressable>
           </View>
           <AppTextField
@@ -197,6 +198,7 @@ function ContactCard({
   isUser?: boolean;
   avatarUrl?: string;
 }) {
+  const subtextColor = useThemeColor("subtext");
   const buildInitials = () => {
     return item.displayName
       .split(" ")
@@ -249,7 +251,7 @@ function ContactCard({
         )}
       </View>
       {isUser ? (
-        <OutlineCheveronRightSvg width={20} color={AppColor.neutral300} />
+        <OutlineCheveronRightSvg width={20} color={subtextColor} />
       ) : (
         <AddContactButton />
       )}
@@ -258,12 +260,13 @@ function ContactCard({
 }
 
 function AddContactButton() {
+  const iconColor = useThemeColor("primary-foreground");
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       className="rounded-full bg-primary px-2 py-1 flex-row gap-2 items-center"
     >
-      <OutlineAddUserSvg width={16} height={16} color={AppColor.white} />
+      <OutlineAddUserSvg width={16} height={16} color={iconColor} />
       <AppText variant="body-sm-regular" color="onPrimary" size={10}>
         Invite
       </AppText>
