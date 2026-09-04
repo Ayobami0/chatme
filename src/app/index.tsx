@@ -1,5 +1,5 @@
 import { OnboardingScreen } from "@features/auth/screens";
-import { useSessionStore } from "@shared/store/session";
+import { useAuth } from "@shared/context/auth-context";
 import { Redirect } from "expo-router";
 
 export default function Index() {
@@ -8,7 +8,7 @@ export default function Index() {
     profileFlowStage,
     profileStatus,
     authStatus,
-  } = useSessionStore();
+  } = useAuth();
 
   if (onboardingStatus === "complete") {
     if (authStatus === "authenticated") {

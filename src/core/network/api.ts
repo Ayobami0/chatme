@@ -1,9 +1,8 @@
 import { AppConfig } from "@core/config";
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { log } from "@logging";
-import StorageService, { StorageKey } from "@services/storage";
 import { VerifyPhoneVerificationResponse } from "@shared/types/api";
-import { useTokenStore } from "@shared/store/auth";
+import { TokenManager } from "@services/token-manager";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -23,7 +22,7 @@ const publicEndpoints = [
 apiClient.interceptors.request.use(
   (config) => {
     if (!publicEndpoints.includes(config.url ?? "")) {
-      const accessToken = useTokenStore.getState().accessToken;
+      const accessToken = TokenManager.getAccessToken();
 
       if (accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
@@ -77,14 +76,14 @@ apiClient.interceptors.response.use(
     if (originalRequest._retry) {
       log.warn("Request failed with 401 after token refresh");
 
-      useTokenStore.getState().clearAuth();
+      TokenManager.clearTokens();
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
 
     try {
-      const refreshToken = useTokenStore.getState().refreshToken;
+      const refreshToken = TokenManager.getRefreshToken();
 
       if (!refreshToken) {
         throw new Error("No refresh token available");
@@ -114,13 +113,12 @@ apiClient.interceptors.response.use(
         refreshToken: newRefreshToken,
       };
 
-      useTokenStore.getState().setAuth(storedTokens);
-
-      await StorageService.secureSave(StorageKey.AuthToken, storedTokens);
+      TokenManager.setTokens(storedTokens);
 
       return apiClient(originalRequest);
     } catch (refreshError) {
       log.error("→ TOKEN REFRESH ERROR", refreshError);
+      TokenManager.clearTokens();
 
       return Promise.reject(refreshError);
     }

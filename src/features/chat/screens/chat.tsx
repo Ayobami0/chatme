@@ -27,7 +27,8 @@ import {
   MessageState,
   TypingChatBubble,
 } from "../components/chat-bubble";
-import { useSessionStore } from "@shared/store/session";
+import { useAuth } from "@shared/context/auth-context";
+import { useCacheStore } from "@shared/store/cache";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Crypto from "expo-crypto";
 import {
@@ -58,10 +59,21 @@ export default function ChatScreen(props: ChatScreenProps) {
   >("offline");
   const [otherPaticipantTyping, setOtherPaticipantTyping] = useState(false);
   const { colorScheme } = useColorScheme();
+
+  const loadMessagesForConversation = useCacheStore(
+    (s) => s.loadMessagesForConversation,
+  );
+  const setCacheMessages = useCacheStore((s) => s.setMessages);
+  const addOrUpdateMessage = useCacheStore((s) => s.addOrUpdateMessage);
+  const cachedMessages = useCacheStore(
+    (s) => s.messagesByConversation[conversationId],
+  );
+
   const { data, isFetching } = useQuery({
     queryKey: ["conversationMessages", conversationId],
     queryFn: () => ConversationService.getConversationMessages(conversationId),
   });
+
   const { mutateAsync } = useMutation({
     mutationFn: async ({ text, id }: { text: string; id: string }) => {
       return await ConversationService.sendMessage(conversationId, {
@@ -70,15 +82,33 @@ export default function ChatScreen(props: ChatScreenProps) {
       });
     },
   });
-  const user = useSessionStore((s) => s.user);
-  const [messagesLoaded, setMessagesLoaded] = useState(false);
+
+  const { user } = useAuth();
+
+  const [pendingMessages, setPendingMessages] = useState<
+    Record<string, MessageModel>
+  >({});
+  const [failedMessages, setFailedMessages] = useState<
+    Record<string, MessageModel>
+  >({});
 
   useEffect(() => {
+    void loadMessagesForConversation(conversationId);
     void ConversationService.markAllConversationMessagesAsRead(conversationId);
     requestAnimationFrame(() =>
       scrollRef.current?.scrollToEnd({ animated: true }),
     );
-  }, []);
+  }, [conversationId, loadMessagesForConversation]);
+
+  useEffect(() => {
+    if (data?.items) {
+      const reversedNetworkMessages = data.items.toReversed();
+      setCacheMessages(conversationId, reversedNetworkMessages);
+      requestAnimationFrame(() =>
+        scrollRef.current?.scrollToEnd({ animated: true }),
+      );
+    }
+  }, [data, conversationId, setCacheMessages]);
 
   useEffect(() => {
     if (!socket || status !== "connected") return;
@@ -91,7 +121,6 @@ export default function ChatScreen(props: ChatScreenProps) {
         (response: RealtimeAck<PresenceSubscriptionData>) => {
           if (!active || !response.ok) return;
 
-          console.log(response.data.participants);
           const participant = response.data.participants.find(
             (item) => item.userId === participantId,
           );
@@ -108,14 +137,13 @@ export default function ChatScreen(props: ChatScreenProps) {
     const onMessage = (message: MessageModel) => {
       if (message.conversationId !== conversationId) return;
       if (message.senderId === user?.id) return;
-      setMessages((current) => [...current, message]);
+      addOrUpdateMessage(conversationId, message);
       requestAnimationFrame(() =>
         scrollRef.current?.scrollToEnd({ animated: true }),
       );
     };
     const onReceipt = (event: ReceiptUpdatedEventPayload) => {
       if (event.conversationId !== conversationId) return;
-      // setReceipts((current) => applyReceiptEvent(current, event));
     };
     const onPresence = (event: PresenceChangedEventPayload) => {
       if (
@@ -162,10 +190,6 @@ export default function ChatScreen(props: ChatScreenProps) {
 
     return () => {
       active = false;
-      // if (typingExpiryRef.current) clearTimeout(typingExpiryRef.current);
-      // typingExpiryRef.current = null;
-      // setOtherPresence("offline");
-      // setOtherTyping(false);
       socket.off("connect", subscribe);
       socket.off("message.created", onMessage);
       socket.off("receipt.delivered", onReceipt);
@@ -182,26 +206,9 @@ export default function ChatScreen(props: ChatScreenProps) {
         );
       }
     };
-  }, [status, socket]);
+  }, [status, socket, conversationId, participantId, addOrUpdateMessage, user?.id]);
 
-  useEffect(() => {
-    if (data && !messagesLoaded) {
-      setMessages((e) => [...data.items.toReversed(), ...e]);
-      setMessagesLoaded(true);
-      requestAnimationFrame(() =>
-        scrollRef.current?.scrollToEnd({ animated: true }),
-      );
-    }
-  }, [data]);
-
-  const [messages, setMessages] = useState<MessageModel[]>([]);
-
-  const [pendingMessages, setPendingMessages] = useState<
-    Record<string, MessageModel>
-  >({});
-  const [failedMessages, setFailedMessages] = useState<
-    Record<string, MessageModel>
-  >({});
+  const messages = cachedMessages ?? [];
 
   const showOtherTypingUntil = useCallback((expiresAt: string) => {
     if (typingExpiryRef.current) clearTimeout(typingExpiryRef.current);
@@ -236,7 +243,7 @@ export default function ChatScreen(props: ChatScreenProps) {
           const { [id]: _removed, ...rest } = m;
           return rest;
         });
-        setMessages((e) => [...e, d]);
+        addOrUpdateMessage(conversationId, d);
       })
       .catch(() => {
         setPendingMessages((m) => {

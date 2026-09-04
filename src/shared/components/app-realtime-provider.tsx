@@ -8,8 +8,8 @@ import {
 } from "react";
 import { io } from "socket.io-client";
 import type { ChatSocket } from "@shared/types/realtime";
-import { useSessionStore } from "@shared/store/session";
-import { useTokenStore } from "@shared/store/auth";
+import { useAuth } from "@shared/context/auth-context";
+import { TokenManager } from "@services/token-manager";
 import { log } from "@core/logging";
 import { ConversationService } from "@services/conversation";
 import { AppConfig } from "@core/config";
@@ -34,8 +34,8 @@ export function AppRealtimeProvider({
   children,
   enabled = true,
 }: RealtimeProviderProps) {
-  const { accessToken, refresh: refreshNow } = useTokenStore();
-  const { user } = useSessionStore();
+  const accessToken = TokenManager.getAccessToken();
+  const { user } = useAuth();
   const [socket, setSocket] = useState<ChatSocket | null>(null);
   const [status, setStatus] = useState<RealtimeStatus>("disconnected");
   const [activityVersion, setActivityVersion] = useState(0);
@@ -132,7 +132,7 @@ export function AppRealtimeProvider({
       next.disconnect();
       setSocket((current) => (current === next ? null : current));
     };
-  }, [enabled, refreshNow, user]);
+  }, [enabled, accessToken, user]);
 
   const value = useMemo<RealtimeContextValue>(
     () => ({ socket, status, activityVersion, reconcileVersion }),

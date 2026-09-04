@@ -8,11 +8,11 @@ export enum StorageKey {
 }
 
 export class StorageService {
-  static async save<T>(key: StorageKey, value: T): Promise<void> {
+  static async save<T>(key: StorageKey | string, value: T): Promise<void> {
     await AsyncStorage.setItem(key, JSON.stringify(value));
   }
 
-  static async get<T>(key: StorageKey): Promise<T | undefined> {
+  static async get<T>(key: StorageKey | string): Promise<T | undefined> {
     const value = await AsyncStorage.getItem(key);
 
     if (value === null) {
@@ -22,12 +22,12 @@ export class StorageService {
     return JSON.parse(value) as T;
   }
 
-  static async remove(key: StorageKey): Promise<void> {
+  static async remove(key: StorageKey | string): Promise<void> {
     await AsyncStorage.removeItem(key);
   }
 
   static async secureSave<T>(
-    key: StorageKey,
+    key: StorageKey | string,
     value: T,
   ): Promise<void> {
     await SecureStore.setItemAsync(
@@ -37,7 +37,7 @@ export class StorageService {
   }
 
   static async secureGet<T>(
-    key: StorageKey,
+    key: StorageKey | string,
   ): Promise<T | undefined> {
     const value = await SecureStore.getItemAsync(key);
 
@@ -48,7 +48,7 @@ export class StorageService {
     return JSON.parse(value) as T;
   }
 
-  static async secureRemove(key: StorageKey): Promise<void> {
+  static async secureRemove(key: StorageKey | string): Promise<void> {
     await SecureStore.deleteItemAsync(key);
   }
 }

@@ -16,11 +16,11 @@ import { router } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
 import { AuthService } from "@services/auth";
 import { getDeviceInfo } from "@shared/utils/device";
-import { useSessionStore } from "@shared/store/session";
+import { useAuth } from "@shared/context/auth-context";
 
 export default function OtpScreen() {
   const { data, stage, setStage } = useAuthFlowStore();
-  const setAuthState = useSessionStore((s) => s.setAuthState);
+  const { setAuthState } = useAuth();
   const [otpData, setOtpData] = useState(data!);
 
   const submit = async (value: z.infer<typeof otpSchema>) => {

@@ -9,13 +9,21 @@ import { View } from "react-native";
 import { client } from "@core/query";
 import { AppToast } from "@components";
 import { useEffect } from "react";
-import { useSessionStore } from "@shared/store/session";
+import { AuthProvider, useAuth } from "@shared/context/auth-context";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootContent />
+    </AuthProvider>
+  );
+}
+
+function RootContent() {
   const { colorScheme } = useColorScheme();
-  const { initialize, initialized } = useSessionStore();
+  const { initialize, initialized } = useAuth();
 
   useEffect(() => {
     initialize();

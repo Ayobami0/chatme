@@ -10,14 +10,22 @@ import { DUMMY_CONVERSATIONS } from "@constants";
 import { ConversationCard } from "../components/conversation-card";
 import { useQuery } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
+import { useCacheStore } from "@shared/store/cache";
 
 export default function ChatsScreen() {
   const [pinModalVisible, setPinModalVIsible] = useState(false);
   const [showFabOptions, setShowFabOptions] = useState(false);
   const [showContactList, setShowContactList] = useState(false);
+
+  const hydrateCache = useCacheStore((s) => s.hydrate);
+  const cachedConversations = useCacheStore((s) => s.conversations);
+  const setConversations = useCacheStore((s) => s.setConversations);
+
   useEffect(() => {
     setPinModalVIsible(true);
-  }, []);
+    void hydrateCache();
+  }, [hydrateCache]);
+
   const { data } = useQuery({
     queryKey: ["conversations"],
     queryFn: async () => {
@@ -26,7 +34,16 @@ export default function ChatsScreen() {
     },
   });
 
-  const conversations = [...(data ?? []), ...DUMMY_CONVERSATIONS];
+  useEffect(() => {
+    if (data) {
+      setConversations(data);
+    }
+  }, [data, setConversations]);
+
+  const conversations =
+    cachedConversations.length > 0
+      ? cachedConversations
+      : [...(data ?? []), ...DUMMY_CONVERSATIONS];
   return (
     <AppView className="p-0">
       <ChatsHeader />

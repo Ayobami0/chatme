@@ -4,7 +4,7 @@ import {
   SolidClockSvg,
   SolidExclamationCircleSvg,
 } from "@shared/components/svgs/icons";
-import { useSessionStore } from "@shared/store/session";
+import { useAuth } from "@shared/context/auth-context";
 import { AppColor } from "@shared/theme/color";
 import { MessageModel } from "@shared/types/models";
 import { formatMessageTime } from "@shared/utils/datetime";
@@ -20,7 +20,7 @@ type ChatBubbleProps = {
 export function ChatBubble(props: ChatBubbleProps) {
   const { message, state } = props;
   const formatedDate = formatMessageTime(new Date(message.createdAt));
-  const { user } = useSessionStore();
+  const { user } = useAuth();
   const isMine = message.senderId === user?.id;
   const StateIcon = () => {
     switch (state) {
