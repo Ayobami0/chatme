@@ -36,6 +36,7 @@ type AppTextFieldProps = {
   field?: AnyFieldApi;
   containerStyle?: StyleProps;
   containerClass?: string;
+  surfix?: () => React.ReactNode
 } & TextInputProps;
 
 type AppControlledTextFieldProps = {} & AppTextFieldProps;
@@ -51,7 +52,6 @@ export function AppBaseTextField(props: AppTextFieldProps) {
     >
       {icon && <View>{icon({ isFocused: false })}</View>}
       <TextInput
-        placeholder="Search chat, people and more..."
         cursorColor={colorScheme === "dark" ? AppColor.neutral200 : AppColor.white}
         selectionColor={colorScheme === "dark" ? AppColor.neutral200 : AppColor.white}
         style={{
@@ -84,6 +84,7 @@ export function AppTextField(props: AppTextFieldProps) {
     keyboardType = "default",
     className,
     value,
+    surfix,
     ...rest
   } = props;
 
@@ -123,6 +124,7 @@ export function AppTextField(props: AppTextFieldProps) {
   }, [hasError]);
 
   const Icon = icon;
+  const Surfix = surfix;
 
   return (
     <View className="w-full">
@@ -133,7 +135,7 @@ export function AppTextField(props: AppTextFieldProps) {
       )}
 
       <View
-        className={`gap-3 flex-row border-hairline border-border rounded-2xl py-[18px] transition-colors duration-200 px-5 ${
+        className={`gap-3 flex-row border-hairline border-border rounded-2xl items-center transition-colors duration-200 px-5 h-14 ${
           isFocused ? "border-focus bg-focus-background" : ""
         } ${hasError ? "border-danger bg-red-50" : ""} ${className ?? ""}`}
       >
@@ -160,6 +162,7 @@ export function AppTextField(props: AppTextFieldProps) {
             onBlur?.(e);
           }}
         />
+        {Surfix && <Surfix />}
       </View>
 
       {showErrorBlock && (

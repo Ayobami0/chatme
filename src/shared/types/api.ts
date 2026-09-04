@@ -1,7 +1,8 @@
+import { StringUnitLength } from "luxon";
 import { ConversationModel, ConversationUser } from "./models";
 
 // PAGINATION
-interface PaginatedRequest<T> {
+export interface PaginatedResponse<T> {
   items: T[];
   pageInfo: {
     nextCursor: string;
@@ -67,7 +68,7 @@ export interface UserUpdateRequest {
 }
 
 // CONVERSATIONS
-export type ConversationsGetResponse = PaginatedRequest<ConversationModel>;
+export type ConversationsGetResponse = PaginatedResponse<ConversationModel>;
 
 export type ConversationGetResponse = ConversationModel;
 
@@ -76,6 +77,17 @@ export interface ConversationPutRequest {
 }
 
 export type ConversationPutResponse = ConversationGetResponse;
+
+export interface ConversationMessagePostRequest {
+  clientMessageId: string;
+  text: string;
+}
+
+export interface ConversationMessageReadResponse {
+  conversationId: string;
+  lastReadAt: string;
+  unreadCount: number;
+}
 
 // Discovery
 export interface MatchContactsRequest {
@@ -90,3 +102,5 @@ export interface MatchContactsResponse {
     },
   ];
 }
+
+export type SearchContactsResponse = PaginatedResponse<ConversationUser>;

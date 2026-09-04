@@ -15,9 +15,29 @@ export interface ConversationModel {
   id: string;
   type: ConversationType;
   otherParticipant: ConversationUser;
-  latestMessage?: undefined;
+  latestMessage?: MessagePreviewModel;
   unreadCount: number;
-  lastActivityAt?: Date;
-  createdAt: Date;
-  updatedAt?: Date;
+  lastActivityAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type MessageKind = 'text';
+
+export interface MessagePreviewModel {
+  id: string;
+  preview?: string;
+  createdAt: string;
+  kind: MessageKind;
+  senderId: string;
+}
+
+export interface MessageModel {
+  id: string;
+  conversationId: string;
+  clientMessageId: string;
+  senderId: string;
+  kind: MessageKind;
+  text: string;
+  createdAt: string;
 }

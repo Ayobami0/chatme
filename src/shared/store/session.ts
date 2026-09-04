@@ -5,7 +5,6 @@ import { AuthService } from "@services/auth";
 import StorageService, { StorageKey } from "@services/storage";
 import { UserModel } from "@shared/types/models";
 import { useTokenStore } from "./auth";
-import { log } from "@core/logging";
 
 export const useSessionStore = create(
   combine(

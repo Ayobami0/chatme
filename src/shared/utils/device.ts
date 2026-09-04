@@ -1,4 +1,5 @@
 import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
 type DeviceInfo = {
   name: string;
@@ -8,6 +9,6 @@ type DeviceInfo = {
 export const getDeviceInfo = async (): Promise<DeviceInfo> => {
   return {
     name: Device.modelName ?? '',
-    platform: Device.osName?.toLowerCase() ?? '',
+    platform: Platform.OS ?? '',
   };
 };

@@ -1,11 +1,15 @@
 import { AppView } from "@components";
-import { View } from "react-native";
+import { FlatList, View } from "react-native";
 import { ChatsHeader } from "../components/chats-header";
 import { useEffect, useState } from "react";
 import { PinCodeModal } from "../components/pin-code-modal";
 import { FABOptionModal } from "../components/fab-option-modal";
 import { FloatingActionButton } from "../components/fab";
 import { ContactListModal } from "../components/contact-list-modal";
+import { DUMMY_CONVERSATIONS } from "@constants";
+import { ConversationCard } from "../components/conversation-card";
+import { useQuery } from "@tanstack/react-query";
+import { ConversationService } from "@services/conversation";
 
 export default function ChatsScreen() {
   const [pinModalVisible, setPinModalVIsible] = useState(false);
@@ -14,13 +18,28 @@ export default function ChatsScreen() {
   useEffect(() => {
     setPinModalVIsible(true);
   }, []);
+  const { data } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: async () => {
+      const response = await ConversationService.getConversations();
+      return response.items;
+    },
+  });
+
+  const conversations = [...(data ?? []), ...DUMMY_CONVERSATIONS];
   return (
     <AppView className="p-0">
       <ChatsHeader />
       <View className="relative flex-1 mx-6">
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ConversationCard conversation={item} />}
+        />
+
         <FloatingActionButton
           onPress={() => setShowFabOptions(true)}
-          className="bottom-[100] right-0 absolute"
+          className="bottom-5 right-0 absolute"
         />
       </View>
       {showFabOptions && (

@@ -5,14 +5,23 @@ import {
   OutlineSearchSvg,
   SolidXSvg,
 } from "@shared/components/svgs/icons";
-import { FlatList, Image, Pressable, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import * as Contacts from "expo-contacts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppColor } from "@shared/theme/color";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { DiscoveryService } from "@services/discovery";
 import { formatPhoneNumber, validatePhoneNumber } from "@shared/utils/phone";
 import { ConversationUser } from "@shared/types/models";
+import { ConversationService } from "@services/conversation";
+import { router } from "expo-router";
 
 type ContactListModalProps = {
   onClose: () => void;
@@ -20,9 +29,8 @@ type ContactListModalProps = {
 
 type AppContact = {
   id: string;
-  fullName: string;
-  phone: string;
-  user?: ConversationUser;
+  displayName: string;
+  phoneNumber?: string;
 };
 
 export function ContactListModal(props: ContactListModalProps) {
@@ -30,13 +38,24 @@ export function ContactListModal(props: ContactListModalProps) {
   const [contacts, setContacts] = useState<AppContact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [fetching, setFetching] = useState(false);
+  const {
+    data: searchResults,
+    isLoading: isSearching,
+    refetch,
+  } = useQuery({
+    queryKey: ["search", searchQuery],
+    queryFn: () => DiscoveryService.searchUsers(searchQuery),
+    enabled: false,
+  });
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { mutate } = useMutation({
     mutationFn: (numbers: string[]) =>
       DiscoveryService.matchContacts({ phoneNumbers: numbers }),
     onSuccess: ({ matches }) => {
       const hydratedContacts = contacts.map((c) => ({
         ...c,
-        user: matches.find((m) => m.matchedPhoneNumber === c.phone)?.user,
+        user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)?.user,
       }));
 
       setContacts(hydratedContacts);
@@ -44,7 +63,16 @@ export function ContactListModal(props: ContactListModalProps) {
     },
     onError: () => setFetching(false),
   });
-
+  const searchUsers = (query: string) => {
+    if (query.trim().length < 3) return;
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      refetch();
+    }, 1500);
+  };
+  const searchedContact = searchResults?.items ?? [];
   useEffect(() => {
     setFetching(true);
     async function fetchContacts() {
@@ -52,13 +80,12 @@ export function ContactListModal(props: ContactListModalProps) {
       if (status === "granted") {
         const { data } = await Contacts.getContactsAsync({ sort: "firstName" });
         const allContacts = data.map((c) => {
-          const contact = c;
           const defaultPhone =
             c.phoneNumbers?.find((e) => e.isPrimary) ?? c.phoneNumbers?.[0];
           return {
             id: c.id,
-            fullName: buildFullName(c),
-            phone:
+            displayName: buildFullName(c),
+            phoneNumber:
               formatPhoneNumber(defaultPhone?.number ?? "", {
                 country: defaultPhone?.countryCode,
               }) ?? "",
@@ -66,8 +93,9 @@ export function ContactListModal(props: ContactListModalProps) {
         });
         setContacts(allContacts);
         const phones = allContacts
-          .filter((c) => validatePhoneNumber(c.phone))
-          .map((c) => c.phone) as string[];
+          .slice(0, 101)
+          .filter((c) => validatePhoneNumber(c.phoneNumber))
+          .map((c) => c.phoneNumber) as string[];
 
         if (!phones.length) {
           setFetching(false);
@@ -84,7 +112,7 @@ export function ContactListModal(props: ContactListModalProps) {
   };
 
   const filteredContacts = contacts.filter((c) =>
-    c.fullName.toLowerCase().includes(searchQuery.toLowerCase()),
+    c.displayName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -101,34 +129,47 @@ export function ContactListModal(props: ContactListModalProps) {
             </Pressable>
           </View>
           <AppTextField
+            surfix={isSearching ? () => <ActivityIndicator /> : undefined}
             placeholder="Search People"
-            icon={({ isFocused }) => <OutlineSearchSvg />}
+            icon={({ isFocused }) => (
+              <OutlineSearchSvg width={20} height={20} />
+            )}
             className="mx-6"
             onChangeText={(v) => {
               setSearchQuery(v);
+              searchUsers(v);
             }}
           />
           <FlatList
             style={{ width: "100%" }}
             contentContainerStyle={{ paddingVertical: 20 }}
-            data={filteredContacts}
+            data={[...searchedContact, ...filteredContacts]}
             keyExtractor={(_, i) => i.toString()}
             ItemSeparatorComponent={() => <View className="h-4" />}
             renderItem={({ item, index }) => {
-              const curr = item.fullName?.[0];
-              const prev = contacts[index - 1]?.fullName?.[0];
+              const curr = item.displayName?.[0];
+              const prev = contacts[index - 1]?.displayName?.[0];
 
               const isValidAlphabet = isAlphabet(curr);
               const hasSectionHeader =
                 index === 0 ||
                 (!isValidAlphabet && isAlphabet(prev)) ||
                 (isValidAlphabet && curr !== prev);
+
+              // @ts-ignore
+              const isUser = searchedContact.includes(item);
+              // @ts-ignore
+              const avatarUrl = isUser ? item.avatarUrl : undefined;
               return (
                 <View>
                   {searchQuery === "" && hasSectionHeader && (
                     <SectionHeader text={isValidAlphabet ? curr : "#"} />
                   )}
-                  <ContactCard item={item}/>
+                  <ContactCard
+                    item={item}
+                    isUser={isUser}
+                    avatarUrl={avatarUrl}
+                  />
                 </View>
               );
             }}
@@ -147,39 +188,72 @@ function SectionHeader({ text }: { text?: string }) {
   );
 }
 
-function ContactCard({ item }: { item: AppContact }) {
+function ContactCard({
+  item,
+  isUser,
+  avatarUrl,
+}: {
+  item: AppContact | ConversationUser;
+  isUser?: boolean;
+  avatarUrl?: string;
+}) {
   const buildInitials = () => {
-    return item.fullName
+    return item.displayName
       .split(" ")
       .map((name) => name.charAt(0).toUpperCase())
       .join("");
   };
+  const { mutate: joinConversation } = useMutation({
+    mutationFn: ConversationService.createOrUpdateConversation,
+    onSuccess: (data) => {
+    router.push({
+      // @ts-ignore
+      pathname: `/chat/${data.id}`,
+      params: {
+        activeAt: data.lastActivityAt ?? "",
+        participantId: data.otherParticipant.id,
+        displayName: encodeURIComponent(
+          data.otherParticipant.displayName,
+        ),
+        profileUrl: encodeURIComponent(
+          data.otherParticipant.avatarUrl,
+        ),
+      },
+    })
+    },
+  });
+
   return (
-    <View className="flex-row gap-4 mx-6 items-center">
+    <Pressable
+      className="flex-row gap-4 mx-6 items-center"
+      onPress={isUser ? () => joinConversation(item.id) : undefined}
+    >
       <View className="size-14 rounded-full bg-muted items-center justify-center">
-        {!item.user || !item.user.avatarUrl ? (
+        {!isUser || !avatarUrl ? (
           <AppText variant="body-sm-regular" color="subtext">
             {buildInitials()}
           </AppText>
         ) : (
           <Image
-            source={{ uri: item.user.avatarUrl }}
+            source={{ uri: avatarUrl }}
             className="size-full rounded-full"
           />
         )}
       </View>
       <View className="flex-1">
-        <AppText>{item.fullName}</AppText>
-        <AppText variant="body-sm-regular" color="subtext">
-          {item.phone}
-        </AppText>
+        <AppText>{item.displayName}</AppText>
+        {!isUser && (
+          <AppText variant="body-sm-regular" color="subtext">
+            {(item as AppContact).phoneNumber}
+          </AppText>
+        )}
       </View>
-      {item.user ? (
+      {isUser ? (
         <OutlineCheveronRightSvg width={20} color={AppColor.neutral300} />
       ) : (
         <AddContactButton />
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -199,4 +273,16 @@ function AddContactButton() {
 
 function isAlphabet(char?: string): boolean {
   return /^[a-zA-Z]$/.test(char ?? "");
+}
+
+function UserSearchResult({ users }: { users: ConversationUser[] }) {
+  return (
+    <View>
+      <AppText>People</AppText>
+      <FlatList
+        data={users}
+        renderItem={({ item }) => <ContactCard item={item} />}
+      />
+    </View>
+  );
 }
