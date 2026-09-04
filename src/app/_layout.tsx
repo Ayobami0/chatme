@@ -10,6 +10,7 @@ import { client } from "@core/query";
 import { AppToast } from "@components";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@shared/context/auth-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,12 +43,14 @@ function RootContent() {
 
   return (
     <QueryClientProvider client={client}>
-      <SafeAreaProvider>
-        <View style={style} className="flex-1">
-          <Stack screenOptions={{ headerShown: false }} />
-        </View>
-        <AppToast />
-      </SafeAreaProvider>
+      <GestureHandlerRootView>
+        <SafeAreaProvider>
+          <View style={style} className="flex-1">
+            <Stack screenOptions={{ headerShown: false }} />
+          </View>
+          <AppToast />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </QueryClientProvider>
   );
 }

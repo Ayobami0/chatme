@@ -26,7 +26,7 @@ export default function ChatsScreen() {
     void hydrateCache();
   }, [hydrateCache]);
 
-  const { data } = useQuery({
+  const { data, refetch, isRefetching } = useQuery({
     queryKey: ["conversations"],
     queryFn: async () => {
       const response = await ConversationService.getConversations();
@@ -47,11 +47,22 @@ export default function ChatsScreen() {
   return (
     <AppView className="p-0">
       <ChatsHeader />
-      <View className="relative flex-1 mx-6">
+      <View className="relative flex-1 mx-6 mt-3">
         <FlatList
+        refreshing={isRefetching}
+        onRefresh={refetch}
           data={conversations}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ConversationCard conversation={item} />}
+          renderItem={({ item }) => (
+            <ConversationCard
+              conversation={item}
+              onMute={() => {}}
+              onPin={() => {}}
+              onDelete={() => {}}
+              onArchive={() => {}}
+              onMore={() => {}}
+            />
+          )}
           contentContainerStyle={
             conversations.length === 0
               ? { flex: 1, justifyContent: "center", alignItems: "center" }
