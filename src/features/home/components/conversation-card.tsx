@@ -42,7 +42,7 @@ export function ConversationCard(props: ConversationCardProps) {
             variant="body-md-regular"
             color={conversation.unreadCount > 0 ? "primary" : "muted"}
           >
-            {formatDateTime(conversation.createdAt)}
+            {conversation.latestMessage && formatDateTime(conversation.latestMessage?.createdAt)}
           </AppText>
         </View>
         <View className="flex-row items-center justify-between w-full">

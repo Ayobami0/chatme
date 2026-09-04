@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { AppSessionState, StoredAuthTokens } from "@shared/types/authState";
 import { UserModel } from "@shared/types/models";
 import { TokenManager } from "@services/token-manager";
@@ -28,6 +28,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profileStatus: "incomplete",
     user: undefined,
   });
+
+  useEffect(() => {
+    TokenManager.setOnUnauthenticatedListener(() => {
+      void useCacheStore.getState().clearCache();
+      setSessionState((prev) => ({
+        ...prev,
+        authStatus: "unauthenticated",
+        user: undefined,
+      }));
+    });
+    return () => TokenManager.setOnUnauthenticatedListener(null);
+  }, []);
 
   const logout = async () => {
     TokenManager.clearTokens();

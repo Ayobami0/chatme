@@ -10,8 +10,13 @@ let currentTokens: Partial<StoredAuthTokens> = {
 };
 
 let refreshPromise: Promise<StoredAuthTokens | undefined> | null = null;
+let unauthenticatedListener: (() => void) | null = null;
 
 export class TokenManager {
+  static setOnUnauthenticatedListener(listener: (() => void) | null): void {
+    unauthenticatedListener = listener;
+  }
+
   static getAccessToken(): string | undefined {
     return currentTokens.accessToken;
   }
@@ -48,6 +53,7 @@ export class TokenManager {
 
     const refreshToken = currentTokens.refreshToken;
     if (!refreshToken) {
+      TokenManager.clearTokens();
       return undefined;
     }
 
@@ -79,5 +85,8 @@ export class TokenManager {
   static clearTokens(): void {
     currentTokens = { accessToken: undefined, refreshToken: undefined };
     void StorageService.secureRemove(StorageKey.AuthToken);
+    if (unauthenticatedListener) {
+      unauthenticatedListener();
+    }
   }
 }
