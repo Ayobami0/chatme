@@ -1,5 +1,5 @@
 import { StringUnitLength } from "luxon";
-import { ConversationModel, ConversationUser } from "./models";
+import { ConversationModel, ConversationReceiptsState, ConversationUser } from "./models";
 
 // PAGINATION
 export interface PaginatedResponse<T> {
@@ -111,14 +111,8 @@ export interface ConversationReceiptsGetResponse {
     {
       userId: string;
       version: number;
-      delivered: {
-        messageId: string;
-        at: string;
-      };
-      read: {
-        messageId: string;
-        at: string;
-      };
+      delivered: ConversationReceiptsState;
+      read: ConversationReceiptsState;
     },
   ];
 }

@@ -1,4 +1,4 @@
-import { AppText, AppView } from "@components";
+import { AppText, AppView, useRealtime } from "@components";
 import { FlatList, View } from "react-native";
 import { ChatsHeader } from "../components/chats-header";
 import { useEffect, useState } from "react";
@@ -8,7 +8,7 @@ import { FloatingActionButton } from "../components/fab";
 import { ContactListModal } from "../components/contact-list-modal";
 import { DUMMY_CONVERSATIONS } from "@constants";
 import { ConversationCard } from "../components/conversation-card";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
 import { useCacheStore } from "@shared/store/cache";
 
@@ -16,6 +16,9 @@ export default function ChatsScreen() {
   const [pinModalVisible, setPinModalVIsible] = useState(false);
   const [showFabOptions, setShowFabOptions] = useState(false);
   const [showContactList, setShowContactList] = useState(false);
+
+  const queryClient = useQueryClient();
+  const { socket, status, activityVersion, reconcileVersion } = useRealtime();
 
   const hydrateCache = useCacheStore((s) => s.hydrate);
   const cachedConversations = useCacheStore((s) => s.conversations);
@@ -39,6 +42,24 @@ export default function ChatsScreen() {
       setConversations(data);
     }
   }, [data, setConversations]);
+
+  useEffect(() => {
+    if (!socket || status !== "connected") return;
+
+    const onMessageCreated = () => {
+      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    };
+
+    socket.on("message.created", onMessageCreated);
+
+    return () => {
+      socket.off("message.created", onMessageCreated);
+    };
+  }, [socket, status, queryClient]);
+
+  useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+  }, [activityVersion, reconcileVersion, queryClient]);
 
   const conversations =
     cachedConversations.length > 0

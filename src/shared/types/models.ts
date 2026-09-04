@@ -22,6 +22,11 @@ export interface ConversationModel {
   updatedAt?: string;
 }
 
+export interface ConversationReceiptsState {
+  messageId: string;
+  at: string;
+}
+
 export type MessageKind = 'text';
 
 export interface MessagePreviewModel {
