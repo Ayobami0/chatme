@@ -94,13 +94,18 @@ export default function ChatScreen(props: ChatScreenProps) {
     Record<string, MessageModel>
   >({});
 
+  const { mutate: markAllAsRead } = useMutation({
+    mutationFn: (convId: string) =>
+      ConversationService.markAllConversationMessagesAsRead(convId),
+  });
+
   useEffect(() => {
     void loadMessagesForConversation(conversationId);
-    void ConversationService.markAllConversationMessagesAsRead(conversationId);
+    markAllAsRead(conversationId);
     requestAnimationFrame(() =>
       scrollRef.current?.scrollToEnd({ animated: true }),
     );
-  }, [conversationId, loadMessagesForConversation]);
+  }, [conversationId, loadMessagesForConversation, markAllAsRead]);
 
   useEffect(() => {
     if (data?.items) {

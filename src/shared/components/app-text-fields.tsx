@@ -35,7 +35,7 @@ type AppTextFieldProps = {
   field?: AnyFieldApi;
   containerStyle?: StyleProps;
   containerClass?: string;
-  surfix?: () => React.ReactNode
+  surfix?: () => React.ReactNode;
 } & TextInputProps;
 
 type AppControlledTextFieldProps = {} & AppTextFieldProps;
@@ -48,7 +48,10 @@ export function AppBaseTextField(props: AppTextFieldProps) {
 
   return (
     <View
-      className={cn("flex-row gap-2 border-[0.5px] rounded-xl items-center pl-3", containerClass)}
+      className={cn(
+        "flex-row gap-2 border-[0.5px] rounded-xl items-center pl-3",
+        containerClass,
+      )}
       style={containerStyle}
     >
       {icon && <View>{icon({ isFocused: false })}</View>}
@@ -131,7 +134,7 @@ export function AppTextField(props: AppTextFieldProps) {
       )}
 
       <View
-        className={`gap-3 flex-row border-hairline border-border rounded-2xl items-center transition-colors duration-200 px-5 h-13 ${
+        className={`gap-3 flex-row border-hairline border-border rounded-2xl items-center transition-colors duration-200 px-5 h-14 ${
           isFocused ? "border-focus bg-focus-background" : ""
         } ${hasError ? "border-danger bg-red-50" : ""} ${className ?? ""}`}
       >

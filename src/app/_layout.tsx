@@ -11,6 +11,7 @@ import { AppToast } from "@components";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@shared/context/auth-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -43,12 +44,14 @@ function RootContent() {
 
   return (
     <QueryClientProvider client={client}>
-      <GestureHandlerRootView>
+      <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <View style={style} className="flex-1">
-            <Stack screenOptions={{ headerShown: false }} />
-          </View>
-          <AppToast />
+          <BottomSheetModalProvider>
+            <View style={style} className="flex-1">
+              <Stack screenOptions={{ headerShown: false }} />
+            </View>
+            <AppToast />
+          </BottomSheetModalProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

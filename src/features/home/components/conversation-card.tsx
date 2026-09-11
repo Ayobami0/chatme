@@ -10,10 +10,14 @@ import { SvgProps } from "react-native-svg";
 import {
   OutlineArchiveSvg,
   OutlineDotsHorizontalSvg,
+  OutlinePushPinSvg,
+  SolidArchiveSvg,
   SolidBellSvg,
-  SolidBookmarkSvg,
+  SolidPushPinSvg,
   SolidTrashSvg,
+  SolidUserGroupSvg,
   SolidVolumeOff1Svg,
+  SolidVolumeUp1Svg,
 } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { PresenceChangedEventPayload } from "@shared/types/realtime";
@@ -49,6 +53,7 @@ export function ConversationCard(props: ConversationCardProps) {
   } = props;
   const { colorScheme } = useColorScheme();
   const bgColor = useThemeColor("background");
+  const subtextColor = useThemeColor("subtext");
   const mutedColor =
     colorScheme === "dark" ? AppColor.neutral700 : AppColor.primary50;
   const [isOnline, setIsOnline] = useState(
@@ -68,6 +73,11 @@ export function ConversationCard(props: ConversationCardProps) {
   const avatarUrl = isDirect
     ? (conversation.otherParticipant.avatarUrl ?? undefined)
     : (conversation.avatarUrl ?? undefined);
+
+  const isMuted = conversation.settings?.muted ?? false;
+  const isPinned = conversation.settings?.pinned ?? false;
+  const isArchived = conversation.settings?.archived ?? false;
+  const isGroup = conversation.type === "group";
 
   useEffect(() => {
     if (!socket || status !== "connected" || !isDirect || !otherParticipant)
@@ -113,17 +123,17 @@ export function ConversationCard(props: ConversationCardProps) {
       renderLeftActions={() => (
         <View className="flex-row gap-2 mr-2">
           <SwipeAction
-            label="Mute"
+            label={isMuted ? "Unmute" : "Mute"}
             onPress={onMute}
-            icon={SolidVolumeOff1Svg}
+            icon={isMuted ? SolidVolumeUp1Svg : SolidVolumeOff1Svg}
             color={AppColor.warning}
           />
 
           <SwipeAction
             color={AppColor.neutral100}
-            label="Pin"
+            label={isPinned ? "Unpin" : "Pin"}
             onPress={onPin}
-            icon={SolidBookmarkSvg}
+            icon={isPinned ? OutlinePushPinSvg : SolidPushPinSvg}
           />
         </View>
       )}
@@ -138,9 +148,9 @@ export function ConversationCard(props: ConversationCardProps) {
 
           <SwipeAction
             color={AppColor.neutral100}
-            label="Archive"
+            label={isArchived ? "Unarchive" : "Archive"}
             onPress={onArchive}
-            icon={OutlineArchiveSvg}
+            icon={isArchived ? OutlineArchiveSvg : SolidArchiveSvg}
           />
 
           <SwipeAction
@@ -172,7 +182,25 @@ export function ConversationCard(props: ConversationCardProps) {
 
         <View className="flex-1">
           <View className="flex-row items-center justify-between">
-            <AppText variant="body-lg-semibold">{displayName}</AppText>
+            <View className="flex-row items-center gap-1.5 flex-1 mr-2">
+              {isGroup && (
+                <SolidUserGroupSvg
+                  color={AppColor.primary400}
+                  width={20}
+                  height={20}
+                />
+              )}
+              <AppText variant="body-lg-semibold" numberOfLines={1}>
+                {displayName}
+              </AppText>
+              {isMuted && (
+                <SolidVolumeOff1Svg
+                  width={20}
+                  height={20}
+                  color={subtextColor}
+                />
+              )}
+            </View>
 
             <AppText
               variant="body-md-regular"
@@ -183,7 +211,7 @@ export function ConversationCard(props: ConversationCardProps) {
             </AppText>
           </View>
 
-          <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center justify-between mt-1">
             <AppText
               variant="body-lg-regular"
               color="muted"
@@ -193,11 +221,18 @@ export function ConversationCard(props: ConversationCardProps) {
               {conversation.latestMessage?.preview}
             </AppText>
 
-            {conversation.unreadCount > 0 && (
-              <View className="size-6 items-center justify-center rounded-full bg-primary-400">
-                <AppText color="onPrimary">{conversation.unreadCount}</AppText>
-              </View>
-            )}
+            <View className="flex-row items-center gap-2">
+              {isPinned && (
+                <SolidPushPinSvg width={20} height={20} color={subtextColor} />
+              )}
+              {conversation.unreadCount > 0 && (
+                <View className="size-6 items-center justify-center rounded-full bg-primary-400">
+                  <AppText color="onPrimary">
+                    {conversation.unreadCount}
+                  </AppText>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </TouchableOpacity>
