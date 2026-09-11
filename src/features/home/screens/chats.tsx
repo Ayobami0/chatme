@@ -15,6 +15,8 @@ import { ConversationService } from "@services/conversation";
 import { useCacheStore } from "@shared/store/cache";
 import { ConversationModel } from "@shared/types/models";
 import { router } from "expo-router";
+import Toast from "react-native-toast-message";
+import { SolidArchiveSvg, SolidPushPinSvg, SolidVolumeUp1Svg } from "@shared/components/svgs/icons";
 
 export default function ChatsScreen() {
   const [pinModalVisible, setPinModalVIsible] = useState(false);
@@ -180,6 +182,14 @@ export default function ChatsScreen() {
         }
       }
     },
+    onSuccess: () => {
+      Toast.show({
+        type: 'native',
+        position: 'bottom',
+        text1: "Chat pinned successfully",
+        props: { icon: SolidPushPinSvg },
+      });
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
@@ -210,6 +220,14 @@ export default function ChatsScreen() {
         }
       }
     },
+    onSuccess: () => {
+      Toast.show({
+        type: 'native',
+        position: 'bottom',
+        text1: "Chat un-pinned successfully",
+        props: { icon: SolidPushPinSvg },
+      });
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
@@ -230,6 +248,14 @@ export default function ChatsScreen() {
           : c,
       );
       handleClearSelection();
+    },
+    onSuccess: () => {
+      Toast.show({
+        type: 'native',
+        position: 'bottom',
+        text1: "Chat archived successfully",
+        props: { icon: SolidArchiveSvg },
+      });
     },
     mutationFn: async (ids: string[]) => {
       for (const id of ids) {
@@ -291,6 +317,14 @@ export default function ChatsScreen() {
       );
       handleClearSelection();
     },
+    onSuccess: () => {
+      Toast.show({
+        type: 'native',
+        position: 'bottom',
+        text1: "Chat muted successfully",
+        props: { icon: SolidVolumeUp1Svg },
+      });
+    },
     mutationFn: async (ids: string[]) => {
       for (const id of ids) {
         try {
@@ -322,6 +356,14 @@ export default function ChatsScreen() {
           : c,
       );
       handleClearSelection();
+    },
+    onSuccess: () => {
+      Toast.show({
+        type: 'native',
+        position: 'bottom',
+        text1: "Chat un-muted successfully",
+        props: { icon: SolidVolumeUp1Svg },
+      });
     },
     mutationFn: async (ids: string[]) => {
       for (const id of ids) {
