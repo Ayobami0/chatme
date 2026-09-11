@@ -16,6 +16,9 @@ export default function ChatsScreen() {
   const [pinModalVisible, setPinModalVIsible] = useState(false);
   const [showFabOptions, setShowFabOptions] = useState(false);
   const [showContactList, setShowContactList] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const isSelectionMode = selectedIds.length > 0;
 
   const queryClient = useQueryClient();
   const { socket, status, activityVersion, reconcileVersion } = useRealtime();
@@ -65,22 +68,99 @@ export default function ChatsScreen() {
     cachedConversations.length > 0
       ? cachedConversations
       : [...(data ?? []), ...DUMMY_CONVERSATIONS];
+
+  const toggleSelectConversation = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handlePin = async (conversationId?: string) => {
+    const ids = conversationId ? [conversationId] : selectedIds;
+    for (const id of ids) {
+      try {
+        await ConversationService.pinConversation(id);
+      } catch (err) {
+        // ignore error
+      }
+    }
+    void refetch();
+    handleClearSelection();
+  };
+
+  const handleArchive = async (conversationId?: string) => {
+    const ids = conversationId ? [conversationId] : selectedIds;
+    for (const id of ids) {
+      try {
+        await ConversationService.archiveConversation(id);
+      } catch (err) {
+        // ignore error
+      }
+    }
+    void refetch();
+    handleClearSelection();
+  };
+
+  const handleMute = async (conversationId?: string) => {
+    const ids = conversationId ? [conversationId] : selectedIds;
+    for (const id of ids) {
+      try {
+        await ConversationService.muteConversation(id, { duration: "always" });
+      } catch (err) {
+        // ignore error
+      }
+    }
+    void refetch();
+    handleClearSelection();
+  };
+
+  const handleDelete = async (conversationId?: string) => {
+    const ids = conversationId ? [conversationId] : selectedIds;
+    for (const id of ids) {
+      try {
+        await ConversationService.clearConversationMessages(id);
+      } catch (err) {
+        // ignore error
+      }
+    }
+    void refetch();
+    handleClearSelection();
+  };
+
   return (
     <AppView className="p-0">
-      <ChatsHeader />
+      <ChatsHeader
+        selectedCount={selectedIds.length}
+        onClearSelection={handleClearSelection}
+        onPin={() => handlePin()}
+        onArchive={() => handleArchive()}
+        onMute={() => handleMute()}
+        onDelete={() => handleDelete()}
+      />
       <View className="relative flex-1 mx-6 mt-3">
         <FlatList
-        refreshing={isRefetching}
-        onRefresh={refetch}
+          refreshing={isRefetching}
+          onRefresh={refetch}
           data={conversations}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <ConversationCard
               conversation={item}
-              onMute={() => {}}
-              onPin={() => {}}
-              onDelete={() => {}}
-              onArchive={() => {}}
+              isSelected={selectedIds.includes(item.id)}
+              onLongPress={() => toggleSelectConversation(item.id)}
+              onPress={
+                isSelectionMode
+                  ? () => toggleSelectConversation(item.id)
+                  : undefined
+              }
+              onMute={() => handleMute(item.id)}
+              onPin={() => handlePin(item.id)}
+              onDelete={() => handleDelete(item.id)}
+              onArchive={() => handleArchive(item.id)}
               onMore={() => {}}
             />
           )}
@@ -96,10 +176,12 @@ export default function ChatsScreen() {
           }
         />
 
-        <FloatingActionButton
-          onPress={() => setShowFabOptions(true)}
-          className="bottom-5 right-0 absolute"
-        />
+        {!isSelectionMode && (
+          <FloatingActionButton
+            onPress={() => setShowFabOptions(true)}
+            className="bottom-5 right-0 absolute"
+          />
+        )}
       </View>
       {showFabOptions && (
         <FABOptionModal

@@ -18,6 +18,9 @@ import {
 import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { PresenceChangedEventPayload } from "@shared/types/realtime";
 
+import * as Haptics from "expo-haptics";
+import { useColorScheme } from "nativewind";
+
 type ConversationCardProps = {
   conversation: ConversationModel;
   onMute: () => void;
@@ -25,14 +28,29 @@ type ConversationCardProps = {
   onDelete: () => void;
   onArchive: () => void;
   onMore: () => void;
+  onLongPress?: () => void;
+  onPress?: () => void;
+  isSelected?: boolean;
 };
 
 const ACTION_WIDTH = 72;
 
 export function ConversationCard(props: ConversationCardProps) {
-  const { conversation, onMute, onPin, onDelete, onArchive, onMore } = props;
+  const {
+    conversation,
+    onMute,
+    onPin,
+    onDelete,
+    onArchive,
+    onMore,
+    onLongPress,
+    onPress,
+    isSelected = false,
+  } = props;
+  const { colorScheme } = useColorScheme();
   const bgColor = useThemeColor("background");
-  const mutedColor = useThemeColor("divider");
+  const mutedColor =
+    colorScheme === "dark" ? AppColor.neutral700 : AppColor.primary50;
   const [isOnline, setIsOnline] = useState(
     conversation.lastActivityAt === undefined
       ? false
@@ -52,7 +70,8 @@ export function ConversationCard(props: ConversationCardProps) {
     : (conversation.avatarUrl ?? undefined);
 
   useEffect(() => {
-    if (!socket || status !== "connected" || !isDirect || !otherParticipant) return;
+    if (!socket || status !== "connected" || !isDirect || !otherParticipant)
+      return;
     const onPresenceChanged = (event: PresenceChangedEventPayload) => {
       if (
         event.conversationId === conversation.id &&
@@ -135,20 +154,25 @@ export function ConversationCard(props: ConversationCardProps) {
     >
       <TouchableOpacity
         activeOpacity={0.8}
-        onPress={navigateToChat}
-        style={{ backgroundColor: bg }}
-        className="flex-row items-center gap-4 px-3 h-20 transition-colors rounded-xl"
+        onPress={() => {
+          if (onPress) {
+            onPress();
+          } else {
+            navigateToChat();
+          }
+        }}
+        onLongPress={() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onLongPress?.();
+        }}
+        style={{ backgroundColor: isSelected ? mutedColor : bg }}
+        className={`flex-row items-center gap-4 px-3 h-20 transition-colors rounded-xl`}
       >
-        <AppAvatar
-          url={avatarUrl}
-          isOnline={isOnline}
-        />
+        <AppAvatar url={avatarUrl} isOnline={isOnline} />
 
         <View className="flex-1">
           <View className="flex-row items-center justify-between">
-            <AppText variant="body-lg-semibold">
-              {displayName}
-            </AppText>
+            <AppText variant="body-lg-semibold">{displayName}</AppText>
 
             <AppText
               variant="body-md-regular"
