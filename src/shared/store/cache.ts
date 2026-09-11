@@ -78,7 +78,7 @@ export const useCacheStore = create(
             ...targetConv,
             latestMessage: {
               id: message.id,
-              preview: message.text,
+              preview: message.text ?? "",
               createdAt: message.createdAt,
               kind: message.kind,
               senderId: message.senderId,

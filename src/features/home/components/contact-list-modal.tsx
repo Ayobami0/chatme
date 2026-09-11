@@ -200,7 +200,7 @@ function ContactCard({
 }) {
   const subtextColor = useThemeColor("subtext");
   const buildInitials = () => {
-    return item.displayName
+    return (item.displayName ?? "")
       .split(" ")
       .map((name) => name.charAt(0).toUpperCase())
       .join("");
@@ -208,20 +208,21 @@ function ContactCard({
   const { mutate: joinConversation } = useMutation({
     mutationFn: ConversationService.createOrUpdateConversation,
     onSuccess: (data) => {
-    router.push({
-      // @ts-ignore
-      pathname: `/chat/${data.id}`,
-      params: {
-        activeAt: data.lastActivityAt ?? "",
-        participantId: data.otherParticipant.id,
-        displayName: encodeURIComponent(
-          data.otherParticipant.displayName,
-        ),
-        profileUrl: encodeURIComponent(
-          data.otherParticipant.avatarUrl,
-        ),
-      },
-    })
+      const otherUser = data.type === "direct" ? data.otherParticipant : null;
+      router.push({
+        // @ts-ignore
+        pathname: `/chat/${data.id}`,
+        params: {
+          activeAt: data.lastActivityAt ?? "",
+          participantId: otherUser?.id ?? "",
+          displayName: encodeURIComponent(
+            otherUser?.displayName ?? "",
+          ),
+          profileUrl: encodeURIComponent(
+            otherUser?.avatarUrl ?? "",
+          ),
+        },
+      });
     },
   });
 

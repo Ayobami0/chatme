@@ -15,7 +15,7 @@ import {
   SolidVideoCameraSvg,
 } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
-import { MessageModel } from "@shared/types/models";
+import { ConversationReceiptsState, MessageModel } from "@shared/types/models";
 import {
   formatActiveDateTimeHumanReadable,
   formatMessageDateSeparator,
@@ -112,10 +112,14 @@ export default function ChatScreen(props: ChatScreenProps) {
     }
   }, [data, conversationId, setCacheMessages]);
 
-  const [receiptState, setReceiptState] = useState<{
-    deliveredMessageId?: string;
-    readMessageId?: string;
-  }>({});
+  const [receiptsList, setReceiptsList] = useState<
+    Array<{
+      userId: string;
+      version?: number;
+      delivered?: { messageId: string; at: string } | null;
+      read?: { messageId: string; at: string } | null;
+    }>
+  >([]);
 
   const { data: receiptData } = useQuery({
     queryKey: ["conversationReceipts", conversationId],
@@ -125,17 +129,9 @@ export default function ChatScreen(props: ChatScreenProps) {
 
   useEffect(() => {
     if (receiptData?.items) {
-      const participantReceipt = receiptData.items.find(
-        (item) => item.userId === participantId,
-      );
-      if (participantReceipt) {
-        setReceiptState({
-          deliveredMessageId: participantReceipt.delivered?.messageId,
-          readMessageId: participantReceipt.read?.messageId,
-        });
-      }
+      setReceiptsList(receiptData.items);
     }
-  }, [receiptData, participantId]);
+  }, [receiptData]);
 
   useEffect(() => {
     if (!socket || status !== "connected") return;
@@ -171,13 +167,21 @@ export default function ChatScreen(props: ChatScreenProps) {
     };
     const onReceipt = (event: ReceiptUpdatedEventPayload) => {
       if (event.conversationId !== conversationId) return;
-      if (event.userId === participantId) {
-        setReceiptState((prev) => ({
-          deliveredMessageId:
-            event.delivered?.messageId ?? prev.deliveredMessageId,
-          readMessageId: event.read?.messageId ?? prev.readMessageId,
-        }));
-      }
+      setReceiptsList((prev) => {
+        const idx = prev.findIndex((item) => item.userId === event.userId);
+        const updated = {
+          userId: event.userId,
+          version: event.version,
+          delivered: event.delivered,
+          read: event.read,
+        };
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        }
+        return [...prev, updated];
+      });
     };
     const onPresence = (event: PresenceChangedEventPayload) => {
       if (
@@ -240,7 +244,14 @@ export default function ChatScreen(props: ChatScreenProps) {
         );
       }
     };
-  }, [status, socket, conversationId, participantId, addOrUpdateMessage, user?.id]);
+  }, [
+    status,
+    socket,
+    conversationId,
+    participantId,
+    addOrUpdateMessage,
+    user?.id,
+  ]);
 
   const messages = cachedMessages ?? [];
 
@@ -289,11 +300,7 @@ export default function ChatScreen(props: ChatScreenProps) {
   };
 
   return (
-    <AppView
-      enabled
-      className="p-0 relative bg-background"
-      behavior="padding"
-    >
+    <AppView enabled className="p-0 relative bg-background" behavior="padding">
       <ChatBg1Svg
         style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
         color={bgSvgColor}
@@ -309,14 +316,11 @@ export default function ChatScreen(props: ChatScreenProps) {
         messages={messages}
         failedMessages={failedMessages}
         pendingMessages={pendingMessages}
-        receiptState={receiptState}
+        receiptsList={receiptsList}
         typing={otherPaticipantTyping}
         ref={scrollRef}
       />
-      <ChatFooter
-        onSend={sendMessage}
-        onFocus={() => {}}
-      />
+      <ChatFooter onSend={sendMessage} onFocus={() => {}} />
     </AppView>
   );
 }
@@ -334,11 +338,7 @@ function ChatHeader(props: {
     <View className="bg-primary pt-safe pb-4 px-6">
       <View className="flex-row items-center pt-2">
         <Pressable onPress={router.back} className="mr-2">
-          <OutlineCheveronLeftSvg
-            width={24}
-            height={24}
-            color={iconColor}
-          />
+          <OutlineCheveronLeftSvg width={24} height={24} color={iconColor} />
         </Pressable>
         {/* @ts-ignore */}
         <AppAvatar url={props.url} radius={48} isOnline={false} bordered />
@@ -367,7 +367,12 @@ function ChatBody(props: {
   messages: MessageModel[];
   failedMessages: Record<string, MessageModel>;
   pendingMessages: Record<string, MessageModel>;
-  receiptState: { deliveredMessageId?: string; readMessageId?: string };
+  receiptsList: Array<{
+    userId: string;
+    version?: number;
+    delivered?: { messageId: string; at: string } | null;
+    read?: { messageId: string; at: string } | null;
+  }>;
   typing?: boolean;
   ref: React.RefObject<Animated.ScrollView | null>;
 }) {
@@ -375,7 +380,7 @@ function ChatBody(props: {
     messages,
     failedMessages,
     pendingMessages,
-    receiptState,
+    receiptsList,
     typing = true,
     ref: scrollRef,
   } = props;
@@ -393,22 +398,37 @@ function ChatBody(props: {
     }
   }, [combinedMessages]);
 
-  const getMessageState = (message: MessageModel, index: number): MessageState => {
+  const getMessageState = (
+    message: MessageModel,
+    index: number,
+  ): MessageState => {
     if (failedMessages[message.id]) return "error";
     if (pendingMessages[message.id]) return "pending";
 
     const isMine = message.senderId === user?.id;
     if (!isMine) return "sent";
 
-    const readIdx = receiptState.readMessageId
-      ? combinedMessages.findIndex((m) => m.id === receiptState.readMessageId)
-      : -1;
-    if (readIdx >= 0 && index <= readIdx) return "read";
+    const isRead = receiptsList.some((receipt) => {
+      if (receipt.userId === user?.id || !receipt.read?.messageId)
+        return false;
+      if (receipt.read.messageId === message.id) return true;
+      const readIdx = combinedMessages.findIndex(
+        (m) => m.id === receipt.read?.messageId,
+      );
+      return readIdx >= 0 && index <= readIdx;
+    });
+    if (isRead) return "read";
 
-    const deliveredIdx = receiptState.deliveredMessageId
-      ? combinedMessages.findIndex((m) => m.id === receiptState.deliveredMessageId)
-      : -1;
-    if (deliveredIdx >= 0 && index <= deliveredIdx) return "delivered";
+    const isDelivered = receiptsList.some((receipt) => {
+      if (receipt.userId === user?.id || !receipt.delivered?.messageId)
+        return false;
+      if (receipt.delivered.messageId === message.id) return true;
+      const deliveredIdx = combinedMessages.findIndex(
+        (m) => m.id === receipt.delivered?.messageId,
+      );
+      return deliveredIdx >= 0 && index <= deliveredIdx;
+    });
+    if (isDelivered) return "delivered";
 
     return "sent";
   };
@@ -448,13 +468,20 @@ function ChatBody(props: {
               {showDateHeader && (
                 <View className="items-center my-1">
                   <View className="bg-primary px-3 py-1 rounded-full">
-                    <AppText size={12} color="onPrimary" variant="body-sm-medium">
+                    <AppText
+                      size={12}
+                      color="onPrimary"
+                      variant="body-sm-medium"
+                    >
                       {currentDateLabel}
                     </AppText>
                   </View>
                 </View>
               )}
-              <ChatBubble message={message} state={getMessageState(message, index)} />
+              <ChatBubble
+                message={message}
+                state={getMessageState(message, index)}
+              />
             </View>
           );
         })}
@@ -486,11 +513,7 @@ function ChatFooter(props: {
       className="bg-background gap-3 py-4 px-3 flex-row items-center mx-6 mb-3 rounded-full"
     >
       <Pressable className="rounded-full size-10 items-center justify-center bg-surface">
-        <OutlinePaperClipSvg
-          width={24}
-          height={24}
-          color={clipIconColor}
-        />
+        <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />
       </Pressable>
       <TextInput
         onFocus={props.onFocus}

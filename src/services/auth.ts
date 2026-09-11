@@ -1,10 +1,13 @@
 import { apiClient } from "@core/network/api";
 import {
+  BlockListResponseDto,
+  BlockResponseDto,
   LogoutRequest,
   PhoneVerificationRequest,
   PhoneVerificationResponse,
   RefreshTokenRequest,
   ResendPhoneVerificationRequest,
+  SetProfileAvatarRequest,
   UserGetResponse,
   UserUpdateRequest,
   VerifyPhoneVerificationRequest,
@@ -19,7 +22,6 @@ export class AuthService {
       "auth/otp/request",
       data,
     );
-
     return r.data;
   }
 
@@ -30,7 +32,6 @@ export class AuthService {
       "auth/otp/verify",
       data,
     );
-
     return r.data;
   }
 
@@ -41,7 +42,6 @@ export class AuthService {
       "auth/otp/resend",
       data,
     );
-
     return r.data;
   }
 
@@ -52,7 +52,6 @@ export class AuthService {
       "auth/refresh",
       data,
     );
-
     return r.data;
   }
 
@@ -70,6 +69,31 @@ export class AuthService {
   static async getProfile(): Promise<UserGetResponse> {
     const r = await apiClient.get<UserGetResponse>("/me");
     return r.data;
+  }
+
+  static async setProfileAvatar(
+    data: SetProfileAvatarRequest,
+  ): Promise<UserGetResponse> {
+    const r = await apiClient.put<UserGetResponse>("/me/avatar", data);
+    return r.data;
+  }
+
+  static async removeProfileAvatar(): Promise<void> {
+    await apiClient.delete("/me/avatar");
+  }
+
+  static async getBlockedUsers(): Promise<BlockListResponseDto> {
+    const r = await apiClient.get<BlockListResponseDto>("/me/blocks");
+    return r.data;
+  }
+
+  static async blockUser(userId: string): Promise<BlockResponseDto> {
+    const r = await apiClient.put<BlockResponseDto>(`/me/blocks/${userId}`);
+    return r.data;
+  }
+
+  static async unblockUser(userId: string): Promise<void> {
+    await apiClient.delete(`/me/blocks/${userId}`);
   }
 }
 

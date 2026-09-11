@@ -1,14 +1,12 @@
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import { AuthDeviceDto } from '@shared/types/api';
 
-type DeviceInfo = {
-  name: string;
-  platform: string;
-};
-
-export const getDeviceInfo = async (): Promise<DeviceInfo> => {
+export const getDeviceInfo = async (): Promise<AuthDeviceDto> => {
+  const os = Platform.OS;
+  const platform = (os === 'ios' || os === 'android' || os === 'web') ? os : 'unknown';
   return {
-    name: Device.modelName ?? '',
-    platform: Platform.OS ?? '',
+    name: Device.modelName ?? 'Unknown Device',
+    platform,
   };
 };

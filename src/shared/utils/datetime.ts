@@ -49,3 +49,9 @@ export function formatMessageDateSeparator(date: string | Date): string {
 
   return dt.toFormat("dd MMMM, yyyy");
 }
+
+export function diffInSeconds(date1: Date, date2: Date): number {
+  return DateTime.fromJSDate(date1)
+    .diff(DateTime.fromJSDate(date2), "seconds")
+    .as("second");
+}

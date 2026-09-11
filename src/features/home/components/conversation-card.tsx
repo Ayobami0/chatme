@@ -1,11 +1,11 @@
-import { AppAvatar, AppText } from "@components";
+import { AppAvatar, AppText, useRealtime } from "@components";
 import { ConversationModel } from "@shared/types/models";
 import { Pressable, TouchableOpacity, View } from "react-native";
-import { formatDateTime } from "@shared/utils/datetime";
+import { diffInSeconds, formatDateTime } from "@shared/utils/datetime";
 import { router } from "expo-router";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { AppColor } from "@shared/theme/color";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { SvgProps } from "react-native-svg";
 import {
   OutlineArchiveSvg,
@@ -16,6 +16,7 @@ import {
   SolidVolumeOff1Svg,
 } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
+import { PresenceChangedEventPayload } from "@shared/types/realtime";
 
 type ConversationCardProps = {
   conversation: ConversationModel;
@@ -31,9 +32,42 @@ const ACTION_WIDTH = 72;
 export function ConversationCard(props: ConversationCardProps) {
   const { conversation, onMute, onPin, onDelete, onArchive, onMore } = props;
   const bgColor = useThemeColor("background");
-  const mutedColor = useThemeColor("muted");
+  const mutedColor = useThemeColor("divider");
+  const [isOnline, setIsOnline] = useState(
+    conversation.lastActivityAt === undefined
+      ? false
+      : diffInSeconds(new Date(), new Date(conversation.lastActivityAt)) < 30, // 30s time limit for presense detection
+  );
 
   const [bg, setBg] = useState<string>(bgColor);
+  const { socket, status } = useRealtime();
+
+  const isDirect = conversation.type === "direct";
+  const otherParticipant = isDirect ? conversation.otherParticipant : null;
+  const displayName = isDirect
+    ? (conversation.otherParticipant.displayName ?? "")
+    : conversation.name;
+  const avatarUrl = isDirect
+    ? (conversation.otherParticipant.avatarUrl ?? undefined)
+    : (conversation.avatarUrl ?? undefined);
+
+  useEffect(() => {
+    if (!socket || status !== "connected" || !isDirect || !otherParticipant) return;
+    const onPresenceChanged = (event: PresenceChangedEventPayload) => {
+      if (
+        event.conversationId === conversation.id &&
+        event.userId === otherParticipant.id
+      ) {
+        setIsOnline(event.status === "online");
+      }
+    };
+
+    socket.on("presence.changed", onPresenceChanged);
+
+    return () => {
+      socket.off("presence.changed", onPresenceChanged);
+    };
+  }, [socket, status, isDirect, otherParticipant, conversation.id]);
 
   const navigateToChat = () => {
     router.push({
@@ -41,11 +75,9 @@ export function ConversationCard(props: ConversationCardProps) {
       pathname: `/chat/${conversation.id}`,
       params: {
         activeAt: conversation.lastActivityAt ?? "",
-        participantId: conversation.otherParticipant.id,
-        displayName: encodeURIComponent(
-          conversation.otherParticipant.displayName,
-        ),
-        profileUrl: encodeURIComponent(conversation.otherParticipant.avatarUrl),
+        participantId: isDirect ? conversation.otherParticipant.id : "",
+        displayName: encodeURIComponent(displayName),
+        profileUrl: encodeURIComponent(avatarUrl ?? ""),
       },
     });
   };
@@ -105,14 +137,17 @@ export function ConversationCard(props: ConversationCardProps) {
         activeOpacity={0.8}
         onPress={navigateToChat}
         style={{ backgroundColor: bg }}
-        className="flex-row items-center gap-4 px-3 h-20 transition-colors"
+        className="flex-row items-center gap-4 px-3 h-20 transition-colors rounded-xl"
       >
-        <AppAvatar url={conversation.otherParticipant.avatarUrl} />
+        <AppAvatar
+          url={avatarUrl}
+          isOnline={isOnline}
+        />
 
         <View className="flex-1">
           <View className="flex-row items-center justify-between">
             <AppText variant="body-lg-semibold">
-              {conversation.otherParticipant.displayName}
+              {displayName}
             </AppText>
 
             <AppText
