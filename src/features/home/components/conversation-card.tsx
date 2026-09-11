@@ -103,6 +103,7 @@ export function ConversationCard(props: ConversationCardProps) {
       // @ts-ignore
       pathname: `/chat/${conversation.id}`,
       params: {
+        isGroup: String(conversation.type === 'group'),
         activeAt: conversation.lastActivityAt ?? "",
         participantId: isDirect ? conversation.otherParticipant.id : "",
         displayName: encodeURIComponent(displayName),

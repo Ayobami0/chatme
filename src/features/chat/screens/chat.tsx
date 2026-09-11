@@ -15,7 +15,12 @@ import {
   SolidVideoCameraSvg,
 } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
-import { ConversationReceiptsState, MessageModel } from "@shared/types/models";
+import {
+  ConversationModel,
+  ConversationReceiptsState,
+  GroupConversationParticipant,
+  MessageModel,
+} from "@shared/types/models";
 import {
   formatActiveDateTimeHumanReadable,
   formatMessageDateSeparator,
@@ -41,6 +46,8 @@ import {
   TypingStartedEventPayload,
   TypingStoppedEventPayload,
 } from "@shared/types/realtime";
+import { AppColor } from "@shared/theme/color";
+import { colorScheme, useColorScheme } from "nativewind";
 
 type ChatScreenProps = {
   conversationId: string;
@@ -48,14 +55,22 @@ type ChatScreenProps = {
   profileUrl?: string;
   fullName?: string;
   activeAt?: Date;
+  isGroup: boolean;
 };
 
 export default function ChatScreen(props: ChatScreenProps) {
-  const { conversationId, participantId, profileUrl, fullName, activeAt } =
-    props;
+  const {
+    conversationId,
+    participantId,
+    profileUrl,
+    fullName,
+    activeAt,
+    isGroup,
+  } = props;
   const { socket, status } = useRealtime();
   const typingExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<Animated.ScrollView>(null);
+  const { colorScheme } = useColorScheme();
   const [otherPaticipantPresense, setOtherPaticipantPresense] = useState<
     "online" | "offline" | undefined
   >("offline");
@@ -74,6 +89,11 @@ export default function ChatScreen(props: ChatScreenProps) {
   const { data, isFetching } = useQuery({
     queryKey: ["conversationMessages", conversationId],
     queryFn: () => ConversationService.getConversationMessages(conversationId),
+  });
+
+  const { data: conversation } = useQuery({
+    queryKey: ["conversation", conversationId],
+    queryFn: () => ConversationService.getConversationById(conversationId),
   });
 
   const { mutateAsync } = useMutation({
@@ -304,8 +324,16 @@ export default function ChatScreen(props: ChatScreenProps) {
       });
   };
 
+  const chatBg =
+    colorScheme === "dark" ? AppColor.neutral700 : AppColor.primary50;
+
   return (
-    <AppView enabled className="p-0 relative bg-background" behavior="padding">
+    <AppView
+      enabled
+      className="p-0 relative"
+      behavior="padding"
+      style={{ backgroundColor: chatBg }}
+    >
       <ChatBg1Svg
         style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
         color={bgSvgColor}
@@ -314,6 +342,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         fullName={fullName ?? ""}
         url={profileUrl}
         online={otherPaticipantPresense === "online"}
+        conversation={conversation}
         date={activeAt}
       />
       {isFetching && <AppLinearProgressIndicator />}
@@ -333,11 +362,46 @@ export default function ChatScreen(props: ChatScreenProps) {
 function ChatHeader(props: {
   fullName: string;
   url?: string;
+  conversation?: ConversationModel;
   online?: boolean;
   date?: Date;
 }) {
+  const { user } = useAuth();
   const presence = props.online ? "Online" : "Offline";
   const iconColor = useThemeColor("primary-foreground");
+
+  const formatParticipants = (
+    participants: GroupConversationParticipant[] | undefined,
+  ): string | null => {
+    if (!participants || participants.length === 0) return "";
+
+    const length = participants.length;
+
+    const names = [
+      ...participants.map((e) => {
+        let parsedName = e.displayName?.split(" ")[0];
+
+        if (user?.id == e.id) {
+          parsedName = "You";
+        }
+
+        return parsedName;
+      }),
+    ].sort((a, b) => {
+      if (a === "You") return -1;
+      if (b === "You") return 1;
+
+      if (!a) return 1;
+      if (!b) return -1;
+
+      return a.localeCompare(b);
+    });
+
+    if (length === 1) return names[0] ?? "";
+    if (length === 2) return names.join(" and ");
+
+    return `${names.slice(0, 2).join(", ")} and ${length - 2}+`;
+  };
 
   return (
     <View className="bg-primary pt-safe pb-4 px-6">
@@ -352,7 +416,9 @@ function ChatHeader(props: {
             {props.fullName}
           </AppText>
           <AppText size={14} color="onPrimary" variant="body-md-regular">
-            {formatActiveDateTimeHumanReadable(props.date) ?? presence}
+            {props.conversation?.type === "group"
+              ? formatParticipants(props.conversation.participants)
+              : (formatActiveDateTimeHumanReadable(props.date) ?? presence)}
           </AppText>
         </View>
         <View className="gap-5 flex-row">
@@ -414,8 +480,7 @@ function ChatBody(props: {
     if (!isMine) return "sent";
 
     const isRead = receiptsList.some((receipt) => {
-      if (receipt.userId === user?.id || !receipt.read?.messageId)
-        return false;
+      if (receipt.userId === user?.id || !receipt.read?.messageId) return false;
       if (receipt.read.messageId === message.id) return true;
       const readIdx = combinedMessages.findIndex(
         (m) => m.id === receipt.read?.messageId,
@@ -515,7 +580,7 @@ function ChatFooter(props: {
         shadowRadius: 24,
         elevation: 2,
       }}
-      className="bg-background gap-3 py-4 px-3 flex-row items-center mx-6 mb-3 rounded-full"
+      className="bg-background gap-3 py-4 px-3 flex-row items-center mx-6 mb-5 rounded-full"
     >
       <Pressable className="rounded-full size-10 items-center justify-center bg-surface">
         <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />

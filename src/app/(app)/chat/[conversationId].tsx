@@ -8,12 +8,14 @@ export default function Index() {
     displayName: encodedDisplayName,
     profileUrl: encodedProfileUrl,
     participantId,
+    isGroup,
   } = useLocalSearchParams<{
     conversationId: string;
     displayName: string;
     activeAt?: string;
     profileUrl?: string;
     participantId: string;
+    isGroup: string;
   }>();
 
   const activeAt = encodedActiveAt ? new Date(encodedActiveAt) : undefined;
@@ -25,6 +27,7 @@ export default function Index() {
 
   return (
     <ChatScreen
+      isGroup={isGroup === "true"}
       conversationId={conversationId}
       participantId={participantId}
       activeAt={activeAt}
