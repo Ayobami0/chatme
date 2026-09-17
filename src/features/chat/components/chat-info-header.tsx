@@ -40,7 +40,7 @@ export default function ChatInfoHeader(props: ChatInfoHeaderProps) {
       : (conversation as DirectConversationModel)?.otherParticipant?.avatarUrl;
 
   return (
-    <View className="pt-safe h-72 relative bg-primary overflow-hidden">
+    <View className="pt-safe h-80 relative bg-primary overflow-hidden">
       {avatarUrl && (
         <Image
           source={{ uri: avatarUrl }}

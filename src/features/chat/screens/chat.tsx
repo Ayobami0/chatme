@@ -5,7 +5,6 @@ import {
   AppView,
   useRealtime,
 } from "@components";
-import { ConversationService } from "@services/conversation";
 import { ChatBg1Svg } from "@shared/components/svgs/assets";
 import {
   OutlineCheveronLeftSvg,
@@ -18,7 +17,6 @@ import {
 import { useThemeColor } from "@shared/hooks/use-theme-color";
 import {
   ConversationModel,
-  ConversationReceiptsState,
   GroupConversationModel,
   GroupConversationParticipant,
   MessageModel,

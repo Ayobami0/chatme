@@ -3,6 +3,9 @@ import { useConversationDetails } from "../query";
 import ChatInfoHeader from "../components/chat-info-header";
 import { ChatInfoDescription } from "../components/chat-info-description";
 import { GroupConversationModel } from "@shared/types/models";
+import { View } from "react-native";
+import ChatInfoMedia from "../components/chat-info-media";
+import ChatInfoFooter from "../components/chat-info-footer";
 
 type ChatInfoProps = {
   conversationID: string;
@@ -18,14 +21,11 @@ export default function ChatInfoScreen(props: ChatInfoProps) {
   return (
     <AppView className="p-0">
       <ChatInfoHeader conversation={conversation} />
-      {type === "group" && (
-        <ChatInfoDescription
-          description={
-            (conversation as GroupConversationModel)?.description ??
-            "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos."
-          }
-        />
-      )}
+      {conversation && <ChatInfoDescription conversation={conversation} />}
+      <View className="w-full h-2 bg-divider" />
+      {conversation && <ChatInfoMedia conversation={conversation} />}
+      <View className="w-full h-2 bg-divider" />
+      {conversation && <ChatInfoFooter conversation={conversation} />}
     </AppView>
   );
 }
