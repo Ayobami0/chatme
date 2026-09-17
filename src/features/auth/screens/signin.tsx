@@ -5,37 +5,37 @@ import {
   AppPhoneTextField,
   toast,
 } from "@shared/components";
-import { useMutation } from "@tanstack/react-query";
+import { useSendPhoneVerification } from "../query";
 import { useForm } from "@tanstack/react-form";
 import { View } from "react-native";
-import { AuthService } from "@services/auth";
 import { phoneNumberSchema } from "../data/schema";
 import z from "zod";
 import { useState } from "react";
 import { router } from "expo-router";
 import { useAuthFlowStore } from "../store";
-import StorageService, { StorageKey } from "@services/storage";
 
 export default function SignInScreen() {
   const { setStage } = useAuthFlowStore();
 
-  const { isPending, mutate } = useMutation({
-    mutationFn: AuthService.requestOTP,
-    onSuccess: async (data) => {
-      setStage("otp", { data });
-      router.push("/opt");
-    },
-    onError: () => {
-      toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to send OTP",
-      });
-    },
-  });
+  const { isPending, mutate } = useSendPhoneVerification();
 
   const submit = (value: z.infer<typeof phoneNumberSchema>) => {
-    mutate({ phoneNumber: `+${code.countryCallCode}${value.phoneNumber}` });
+    mutate(
+      { phoneNumber: `+${code.countryCallCode}${value.phoneNumber}` },
+      {
+        onSuccess: async (data) => {
+          setStage("otp", { data });
+          router.push("/opt");
+        },
+        onError: () => {
+          toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Failed to send OTP",
+          });
+        },
+      },
+    );
   };
 
   const { Field, handleSubmit, Subscribe } = useForm({

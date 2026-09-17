@@ -16,11 +16,9 @@ import {
 import * as Contacts from "expo-contacts";
 import { useEffect, useRef, useState } from "react";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { DiscoveryService } from "@services/discovery";
+import { useSearchUsers, useMatchContacts, useCreateDirectConversation } from "../query";
 import { formatPhoneNumber, validatePhoneNumber } from "@shared/utils/phone";
 import { ConversationUser } from "@shared/types/models";
-import { ConversationService } from "@services/conversation";
 import { router } from "expo-router";
 
 type ContactListModalProps = {
@@ -39,31 +37,28 @@ export function ContactListModal(props: ContactListModalProps) {
   const [contacts, setContacts] = useState<AppContact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [fetching, setFetching] = useState(false);
+  const searchUsersQuery = useSearchUsers(searchQuery);
   const {
     data: searchResults,
     isLoading: isSearching,
     refetch,
-  } = useQuery({
-    queryKey: ["search", searchQuery],
-    queryFn: () => DiscoveryService.searchUsers(searchQuery),
-    enabled: false,
-  });
+  } = searchUsersQuery;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { mutate } = useMutation({
-    mutationFn: (numbers: string[]) =>
-      DiscoveryService.matchContacts({ phoneNumbers: numbers }),
-    onSuccess: ({ matches }) => {
-      const hydratedContacts = contacts.map((c) => ({
-        ...c,
-        user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)?.user,
-      }));
-
-      setContacts(hydratedContacts);
-      setFetching(false);
-    },
-    onError: () => setFetching(false),
-  });
+  const matchContactsMutation = useMatchContacts();
+  const mutate = (numbers: string[]) => {
+    matchContactsMutation.mutate(numbers, {
+      onSuccess: ({ matches }) => {
+        const hydratedContacts = contacts.map((c) => ({
+          ...c,
+          user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)?.user,
+        }));
+        setContacts(hydratedContacts);
+        setFetching(false);
+      },
+      onError: () => setFetching(false),
+    });
+  };
   const searchUsers = (query: string) => {
     if (query.trim().length < 3) return;
     if (debounceRef.current) {
@@ -170,6 +165,7 @@ export function ContactListModal(props: ContactListModalProps) {
                     item={item}
                     isUser={isUser}
                     avatarUrl={avatarUrl}
+                    onClose={onClose}
                   />
                 </View>
               );
@@ -193,10 +189,12 @@ function ContactCard({
   item,
   isUser,
   avatarUrl,
+  onClose,
 }: {
   item: AppContact | ConversationUser;
   isUser?: boolean;
   avatarUrl?: string;
+  onClose?: () => void;
 }) {
   const subtextColor = useThemeColor("subtext");
   const buildInitials = () => {
@@ -205,26 +203,32 @@ function ContactCard({
       .map((name) => name.charAt(0).toUpperCase())
       .join("");
   };
-  const { mutate: joinConversation } = useMutation({
-    mutationFn: ConversationService.createOrUpdateConversation,
-    onSuccess: (data) => {
-      const otherUser = data.type === "direct" ? data.otherParticipant : null;
-      router.push({
-        // @ts-ignore
-        pathname: `/chat/${data.id}`,
-        params: {
-          activeAt: data.lastActivityAt ?? "",
-          participantId: otherUser?.id ?? "",
-          displayName: encodeURIComponent(
-            otherUser?.displayName ?? "",
-          ),
-          profileUrl: encodeURIComponent(
-            otherUser?.avatarUrl ?? "",
-          ),
-        },
-      });
-    },
-  });
+  const createDirectConversationMutation = useCreateDirectConversation();
+  const joinConversation = (
+    userId: string,
+    options?: { onSuccess?: (data: any) => void },
+  ) => {
+    createDirectConversationMutation.mutate(userId, {
+      onSuccess: (data) => {
+        const otherUser = data.type === "direct" ? data.otherParticipant : null;
+        router.push({
+          // @ts-ignore
+          pathname: `/chat/${data.id}`,
+          params: {
+            activeAt: data.lastActivityAt ?? "",
+            participantId: otherUser?.id ?? "",
+            displayName: encodeURIComponent(
+              otherUser?.displayName ?? "",
+            ),
+            profileUrl: encodeURIComponent(
+              otherUser?.avatarUrl ?? "",
+            ),
+          },
+        });
+        onClose?.();
+      },
+    });
+  };
 
   return (
     <Pressable

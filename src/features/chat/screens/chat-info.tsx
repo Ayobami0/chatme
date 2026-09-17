@@ -1,6 +1,5 @@
 import { AppView } from "@components";
-import { ConversationService } from "@services/conversation";
-import { useQuery } from "@tanstack/react-query";
+import { useConversationDetails } from "../query";
 import ChatInfoHeader from "../components/chat-info-header";
 import { ChatInfoDescription } from "../components/chat-info-description";
 import { GroupConversationModel } from "@shared/types/models";
@@ -12,10 +11,7 @@ type ChatInfoProps = {
 export default function ChatInfoScreen(props: ChatInfoProps) {
   const { conversationID } = props;
 
-  const { data: conversation } = useQuery({
-    queryKey: ["conversation", conversationID],
-    queryFn: () => ConversationService.getConversationById(conversationID),
-  });
+  const { data: conversation } = useConversationDetails(conversationID);
 
   const type = conversation?.type ?? "direct";
 

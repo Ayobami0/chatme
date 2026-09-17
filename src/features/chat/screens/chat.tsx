@@ -27,7 +27,13 @@ import {
   formatActiveDateTimeHumanReadable,
   formatMessageDateSeparator,
 } from "@shared/utils/datetime";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  useConversationMessages,
+  useConversationDetails,
+  useSendMessage,
+  useMarkAllAsRead,
+  useConversationReceipts,
+} from "../query";
 import { router } from "expo-router";
 import { Pressable, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -88,24 +94,12 @@ export default function ChatScreen(props: ChatScreenProps) {
     (s) => s.messagesByConversation[conversationId],
   );
 
-  const { data, isFetching } = useQuery({
-    queryKey: ["conversationMessages", conversationId],
-    queryFn: () => ConversationService.getConversationMessages(conversationId),
-  });
+  const { data, isFetching } = useConversationMessages(conversationId);
+  const conversationQuery = useConversationDetails(conversationId);
+  const { data: conversation, refetch: refetchConversation } = conversationQuery;
 
-  const { data: conversation, refetch: refetchConversation } = useQuery({
-    queryKey: ["conversation", conversationId],
-    queryFn: () => ConversationService.getConversationById(conversationId),
-  });
-
-  const { mutateAsync } = useMutation({
-    mutationFn: async ({ text, id }: { text: string; id: string }) => {
-      return await ConversationService.sendMessage(conversationId, {
-        text,
-        clientMessageId: id,
-      });
-    },
-  });
+  const sendMessageMutation = useSendMessage(conversationId);
+  const mutateAsync = sendMessageMutation.mutateAsync;
 
   const { user } = useAuth();
 
@@ -116,13 +110,8 @@ export default function ChatScreen(props: ChatScreenProps) {
     Record<string, MessageModel>
   >({});
 
-  const { mutate: markAllAsRead } = useMutation({
-    mutationFn: (convId: string) =>
-      ConversationService.markAllConversationMessagesAsRead(convId),
-    onSettled: () => {
-      void refetchConversation();
-    },
-  });
+  const markAllAsReadMutation = useMarkAllAsRead();
+  const markAllAsRead = markAllAsReadMutation.mutate;
 
   useEffect(() => {
     void loadMessagesForConversation(conversationId);
@@ -132,11 +121,9 @@ export default function ChatScreen(props: ChatScreenProps) {
     );
   }, [conversationId, loadMessagesForConversation, markAllAsRead]);
 
-
   useEffect(() => {
-    if (data?.items) {
-      const reversedNetworkMessages = data.items.toReversed();
-      setCacheMessages(conversationId, reversedNetworkMessages);
+    if (data) {
+      setCacheMessages(conversationId, data);
       requestAnimationFrame(() =>
         scrollRef.current?.scrollToEnd({ animated: true }),
       );
@@ -152,11 +139,7 @@ export default function ChatScreen(props: ChatScreenProps) {
     }>
   >([]);
 
-  const { data: receiptData } = useQuery({
-    queryKey: ["conversationReceipts", conversationId],
-    queryFn: () =>
-      ConversationService.reconcileParticipantReadReceipts(conversationId),
-  });
+  const { data: receiptData } = useConversationReceipts(conversationId);
 
   useEffect(() => {
     if (receiptData?.items) {
@@ -348,7 +331,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         fullName={fullName ?? ""}
         url={profileUrl}
         online={otherPaticipantPresense === "online"}
-        conversation={conversation}
+        conversation={conversation ?? undefined}
         date={activeAt}
       />
       {isFetching && <AppLinearProgressIndicator />}
@@ -359,7 +342,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         receiptsList={receiptsList}
         typing={otherPaticipantTyping}
         ref={scrollRef}
-        conversation={conversation}
+        conversation={conversation ?? undefined}
       />
       <ChatFooter onSend={sendMessage} onFocus={() => {}} />
     </AppView>

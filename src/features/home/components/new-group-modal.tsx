@@ -20,7 +20,6 @@ import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { AppColor } from "@shared/theme/color";
 import { ConversationUser } from "@shared/types/models";
 import { formatPhoneNumber, validatePhoneNumber } from "@shared/utils/phone";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Contacts from "expo-contacts";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -36,6 +35,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import Toast from "react-native-toast-message";
+import { useCreateGroup, useSearchUsers, useMatchContacts } from "../query";
 
 type NewGroupModalProps = {
   isVisible: boolean;
@@ -60,7 +60,8 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
   const [groupDescription, setGroupDescription] = useState("");
   const [image, setImage] = useState<string | undefined>();
 
-  const queryClient = useQueryClient();
+  const createGroupMutation = useCreateGroup();
+  const isCreating = createGroupMutation.isPending;
   const closeIconColor = useThemeColor("foreground");
 
   const resetState = () => {
@@ -93,32 +94,12 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
     });
   };
 
-  const { mutate: createGroup, isPending: isCreating } = useMutation({
-    mutationFn: () =>
-      ConversationService.createGroupConversation({
-        name: groupName.trim(),
-        participantIds: selectedUserIds,
-      }),
-    onError: (error) => {
-      Toast.show({
-        type: "error",
-        text1: "Unable to create group",
-        text2: error.message,
-      });
-    },
-    onSuccess: (newGroup) => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      handleClose();
-      router.push({
-        // @ts-ignore
-        pathname: `/chat/${newGroup.id}`,
-        params: {
-          displayName: encodeURIComponent(newGroup.name),
-          profileUrl: encodeURIComponent(newGroup.avatarUrl ?? ""),
-        },
-      });
-    },
-  });
+  const createGroup = () => {
+    createGroupMutation.mutate({
+      name: groupName.trim(),
+      participantIds: selectedUserIds,
+    });
+  };
 
   return (
     <AppFullScreenModal
@@ -233,29 +214,27 @@ function GroupCreationProgress1({
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const searchUsersQuery = useSearchUsers(searchQuery);
   const {
     data: searchResults,
     isLoading: isSearching,
     refetch,
-  } = useQuery({
-    queryKey: ["search-group-users", searchQuery],
-    queryFn: () => DiscoveryService.searchUsers(searchQuery),
-    enabled: false,
-  });
+  } = searchUsersQuery;
 
-  const { mutate: matchContactsMutate } = useMutation({
-    mutationFn: (numbers: string[]) =>
-      DiscoveryService.matchContacts({ phoneNumbers: numbers }),
-    onSuccess: ({ matches }) => {
-      const hydratedContacts = contacts.map((c) => ({
-        ...c,
-        user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)?.user,
-      }));
-      setContacts(hydratedContacts);
-      setFetching(false);
-    },
-    onError: () => setFetching(false),
-  });
+  const matchContactsMutation = useMatchContacts();
+  const matchContactsMutate = (numbers: string[]) => {
+    matchContactsMutation.mutate(numbers, {
+      onSuccess: ({ matches }) => {
+        const hydratedContacts = contacts.map((c) => ({
+          ...c,
+          user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)?.user,
+        }));
+        setContacts(hydratedContacts);
+        setFetching(false);
+      },
+      onError: () => setFetching(false),
+    });
+  };
 
   const searchUsers = (query: string) => {
     if (query.trim().length < 3) return;
@@ -315,7 +294,7 @@ function GroupCreationProgress1({
       avatarUrl: c.user!.avatarUrl ?? undefined,
     }));
 
-  const searchedUsersList = (searchResults?.items ?? []).map((u) => ({
+  const searchedUsersList = (searchResults?.items ?? []).map((u: ConversationUser) => ({
     id: u.id,
     displayName: u.displayName ?? "User",
     avatarUrl: u.avatarUrl ?? undefined,

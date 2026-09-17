@@ -2,8 +2,7 @@ import { AppText, AppView, useRealtime } from "@components";
 import { ConversationService } from "@services/conversation";
 import { OutlineCheveronLeftSvg } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
-import { useCacheStore } from "@shared/store/cache";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useArchivedConversations } from "../query";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
@@ -11,31 +10,25 @@ import { ConversationCard } from "../components/conversation-card";
 
 export default function ArchivedChatsScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const queryClient = useQueryClient();
   const { socket, status } = useRealtime();
 
-  // const cachedConversations = useCacheStore((s) => s.conversations);
-  // const setConversations = useCacheStore((s) => s.setConversations);
-
-  const { data, refetch } = useQuery({
-    queryKey: ["archivedConversations"],
-    queryFn: async () => {
-      const response = await ConversationService.getArchivedConversations();
-      return response.items;
-    },
-  });
-
-  // useEffect(() => {
-  //   if (data) {
-  //     setConversations(data);
-  //   }
-  // }, [data, setConversations]);
+  const {
+    archivedQuery,
+    archivedConversations: conversations,
+    unarchiveMutation,
+    pinMutation,
+    unpinMutation,
+    muteMutation,
+    unmuteMutation,
+    deleteMutation,
+  } = useArchivedConversations();
+  const { refetch } = archivedQuery;
 
   useEffect(() => {
     if (!socket || status !== "connected") return;
 
     const onMessageCreated = () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void refetch();
     };
 
     socket.on("message.created", onMessageCreated);
@@ -43,9 +36,7 @@ export default function ArchivedChatsScreen() {
     return () => {
       socket.off("message.created", onMessageCreated);
     };
-  }, [socket, status, queryClient]);
-
-  const conversations = data ?? [];
+  }, [socket, status, refetch]);
 
   const toggleSelectConversation = (id: string) => {
     setSelectedIds((prev) =>
@@ -57,101 +48,35 @@ export default function ArchivedChatsScreen() {
     setSelectedIds([]);
   };
 
-  const { mutate: unarchiveMutate } = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.unarchiveConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      void refetch();
-      handleClearSelection();
-    },
-  });
+  const unarchiveMutate = (ids: string[]) => {
+    ids.forEach((id) => unarchiveMutation.mutate(id));
+    handleClearSelection();
+  };
 
-  const { mutate: pinMutate } = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.pinConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      void refetch();
-      handleClearSelection();
-    },
-  });
+  const pinMutate = (ids: string[]) => {
+    ids.forEach((id) => pinMutation.mutate(id));
+    handleClearSelection();
+  };
 
-  const { mutate: unpinMutate } = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.unpinConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      void refetch();
-      handleClearSelection();
-    },
-  });
+  const unpinMutate = (ids: string[]) => {
+    ids.forEach((id) => unpinMutation.mutate(id));
+    handleClearSelection();
+  };
 
-  const { mutate: muteMutate } = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.muteConversation(id, { duration: "always" });
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      void refetch();
-      handleClearSelection();
-    },
-  });
+  const muteMutate = (ids: string[]) => {
+    ids.forEach((id) => muteMutation.mutate(id));
+    handleClearSelection();
+  };
 
-  const { mutate: unmuteMutate } = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.unmuteConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      void refetch();
-      handleClearSelection();
-    },
-  });
+  const unmuteMutate = (ids: string[]) => {
+    ids.forEach((id) => unmuteMutation.mutate(id));
+    handleClearSelection();
+  };
 
-  const { mutate: deleteMutate } = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.clearConversationMessages(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      void refetch();
-      handleClearSelection();
-    },
-  });
+  const deleteMutate = (ids: string[]) => {
+    ids.forEach((id) => deleteMutation.mutate(id));
+    handleClearSelection();
+  };
 
   const handleUnarchive = (conversationId?: string) => {
     const ids = conversationId ? [conversationId] : selectedIds;

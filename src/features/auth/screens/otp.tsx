@@ -13,8 +13,7 @@ import z from "zod";
 import { useForm } from "@tanstack/react-form";
 import { useAuthFlowStore } from "../store";
 import { router } from "expo-router";
-import { useMutation } from "@tanstack/react-query";
-import { AuthService } from "@services/auth";
+import { useVerifyOtp } from "../query";
 import { getDeviceInfo } from "@shared/utils/device";
 import { useAuth } from "@shared/context/auth-context";
 
@@ -22,6 +21,10 @@ export default function OtpScreen() {
   const { data, stage, setStage } = useAuthFlowStore();
   const { setAuthState } = useAuth();
   const [otpData, setOtpData] = useState(data!);
+
+  const { verifyMutation, resendMutation } = useVerifyOtp();
+  const { mutate: verifyOtp, isPending } = verifyMutation;
+  const { mutate: resendOtp, isPending: isPendingResend } = resendMutation;
 
   const submit = async (value: z.infer<typeof otpSchema>) => {
     const deviceInfo = await getDeviceInfo();
@@ -74,13 +77,6 @@ export default function OtpScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, [countdown]);
-
-  const { mutate: verifyOtp, isPending } = useMutation({
-    mutationFn: AuthService.verifyOTP,
-  });
-  const { mutate: resendOtp, isPending: isPendingResend } = useMutation({
-    mutationFn: AuthService.resendOTP,
-  });
 
   const { Field, handleSubmit, Subscribe } = useForm({
     onSubmit: ({ value }) => submit(value),

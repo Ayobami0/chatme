@@ -18,7 +18,7 @@ import {
 import { AppText } from "@components";
 
 type ChatInfoHeaderProps = {
-  conversation?: ConversationModel;
+  conversation?: ConversationModel | null;
 };
 
 export default function ChatInfoHeader(props: ChatInfoHeaderProps) {

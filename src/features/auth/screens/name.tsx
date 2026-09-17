@@ -11,14 +11,16 @@ import { fullNameSchema, phoneNumberSchema } from "../data/schema";
 import z from "zod";
 import { useAuthFlowStore } from "../store";
 import { useForm } from "@tanstack/react-form";
-import { AuthService } from "@services/auth";
-import { useMutation } from "@tanstack/react-query";
+import { useUpdateProfile } from "../query";
 import { SolidUserSvg } from "@shared/components/svgs/icons";
 import { router } from "expo-router";
 import StorageService, { StorageKey } from "@services/storage";
 import { log } from "@core/logging";
 
 export default function ProfileNameScreen() {
+  const { setStage } = useAuthFlowStore();
+  const { mutate, isPending } = useUpdateProfile();
+
   const submit = async (value: z.infer<typeof fullNameSchema>) => {
     mutate(
       { displayName: value.fullName },
@@ -39,11 +41,6 @@ export default function ProfileNameScreen() {
       },
     );
   };
-  const { setStage } = useAuthFlowStore();
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: AuthService.updateProfile,
-  });
 
   const { Field, handleSubmit, Subscribe } = useForm({
     onSubmit: ({ value }) => submit(value),

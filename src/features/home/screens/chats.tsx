@@ -10,16 +10,18 @@ import { NewGroupModal } from "../components/new-group-modal";
 import { DUMMY_CONVERSATIONS } from "@constants";
 import { ConversationCard } from "../components/conversation-card";
 import { ArchivedChatCard } from "../components/archived-chat-card";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useConversations, useArchivedConversations } from "../query";
 import { ConversationService } from "@services/conversation";
 import { useCacheStore } from "@shared/store/cache";
 import { ConversationModel } from "@shared/types/models";
 import { router } from "expo-router";
 import Toast from "react-native-toast-message";
 import { SolidArchiveSvg, SolidPushPinSvg, SolidVolumeUp1Svg } from "@shared/components/svgs/icons";
+import { useQueryClient } from "@tanstack/react-query";
 import StorageService, { StorageKey } from "@services/storage";
 
 export default function ChatsScreen() {
+  const queryClient = useQueryClient();
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [showFabOptions, setShowFabOptions] = useState(false);
   const [showContactList, setShowContactList] = useState(false);
@@ -28,7 +30,22 @@ export default function ChatsScreen() {
 
   const isSelectionMode = selectedIds.length > 0;
 
-  const queryClient = useQueryClient();
+  const {
+    conversationsQuery,
+    conversations: data,
+    pinMutation,
+    unpinMutation,
+    archiveMutation,
+    unarchiveMutation,
+    muteMutation,
+    unmuteMutation,
+    deleteMutation,
+  } = useConversations();
+  const { refetch } = conversationsQuery;
+
+  const { archivedQuery } = useArchivedConversations();
+  const { data: archivedConversationsResp, refetch: refetchArcchived } = archivedQuery;
+
   const { socket, status, activityVersion, reconcileVersion } = useRealtime();
 
   const hydrateCache = useCacheStore((s) => s.hydrate);
@@ -46,22 +63,6 @@ export default function ChatsScreen() {
     })();
     void hydrateCache();
   }, [hydrateCache]);
-
-  const { data: archivedConversationsResp, refetch: refetchArcchived } = useQuery({
-    queryKey: ["archivedConversations"],
-    queryFn: async () => {
-      const response = await ConversationService.getArchivedConversations();
-      return response.items;
-    },
-  });
-
-  const { data, refetch } = useQuery({
-    queryKey: ["conversations"],
-    queryFn: async () => {
-      const response = await ConversationService.getConversations();
-      return response.items;
-    },
-  });
 
   useEffect(() => {
     if (data) {
@@ -172,254 +173,70 @@ export default function ChatsScreen() {
     queryClient.setQueryData(["conversations"], updated);
   };
 
-  const { mutate: pinMutate } = useMutation({
-    onMutate: (ids: string[]) => {
-      updateLocalConversations((c) =>
-        ids.includes(c.id)
-          ? {
-              ...c,
-              settings: {
-                ...c.settings,
-                pinned: true,
-                pinnedAt: new Date().toISOString(),
-              },
-            }
-          : c,
-      );
-      handleClearSelection();
-    },
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.pinConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      Toast.show({
-        type: 'native',
-        position: 'bottom',
-        text1: "Chat pinned successfully",
-        props: { icon: SolidPushPinSvg },
-      });
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
+  const pinMutate = (ids: string[]) => {
+    ids.forEach((id) => pinMutation.mutate(id));
+    handleClearSelection();
+    Toast.show({
+      type: "native",
+      position: "bottom",
+      text1: "Chat pinned successfully",
+      props: { icon: SolidPushPinSvg },
+    });
+  };
 
-  const { mutate: unpinMutate } = useMutation({
-    onMutate: (ids: string[]) => {
-      updateLocalConversations((c) =>
-        ids.includes(c.id)
-          ? {
-              ...c,
-              settings: {
-                ...c.settings,
-                pinned: false,
-                pinnedAt: null,
-              },
-            }
-          : c,
-      );
-      handleClearSelection();
-    },
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.unpinConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSuccess: () => {
-      Toast.show({
-        type: 'native',
-        position: 'bottom',
-        text1: "Chat un-pinned successfully",
-        props: { icon: SolidPushPinSvg },
-      });
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
+  const unpinMutate = (ids: string[]) => {
+    ids.forEach((id) => unpinMutation.mutate(id));
+    handleClearSelection();
+    Toast.show({
+      type: "native",
+      position: "bottom",
+      text1: "Chat un-pinned successfully",
+      props: { icon: SolidPushPinSvg },
+    });
+  };
 
-  const { mutate: archiveMutate } = useMutation({
-    onMutate: (ids: string[]) => {
-      updateLocalConversations((c) =>
-        ids.includes(c.id)
-          ? {
-              ...c,
-              settings: {
-                ...c.settings,
-                archived: true,
-                archivedAt: new Date().toISOString(),
-              },
-            }
-          : c,
-      );
-      handleClearSelection();
-    },
-    onSuccess: () => {
-      Toast.show({
-        type: 'native',
-        position: 'bottom',
-        text1: "Chat archived successfully",
-        props: { icon: SolidArchiveSvg },
-      });
-    },
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.archiveConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
+  const archiveMutate = (ids: string[]) => {
+    ids.forEach((id) => archiveMutation.mutate(id));
+    handleClearSelection();
+    Toast.show({
+      type: "native",
+      position: "bottom",
+      text1: "Chat archived successfully",
+      props: { icon: SolidArchiveSvg },
+    });
+  };
 
-  const { mutate: unarchiveMutate } = useMutation({
-    onMutate: (ids: string[]) => {
-      updateLocalConversations((c) =>
-        ids.includes(c.id)
-          ? {
-              ...c,
-              settings: {
-                ...c.settings,
-                archived: false,
-                archivedAt: null,
-              },
-            }
-          : c,
-      );
-      handleClearSelection();
-    },
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.unarchiveConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
+  const unarchiveMutate = (ids: string[]) => {
+    ids.forEach((id) => unarchiveMutation.mutate(id));
+    handleClearSelection();
+  };
 
-  const { mutate: muteMutate } = useMutation({
-    onMutate: (ids: string[]) => {
-      updateLocalConversations((c) =>
-        ids.includes(c.id)
-          ? {
-              ...c,
-              settings: {
-                ...c.settings,
-                muted: true,
-                mutedAt: new Date().toISOString(),
-              },
-            }
-          : c,
-      );
-      handleClearSelection();
-    },
-    onSuccess: () => {
-      Toast.show({
-        type: 'native',
-        position: 'bottom',
-        text1: "Chat muted successfully",
-        props: { icon: SolidVolumeUp1Svg },
-      });
-    },
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.muteConversation(id, {
-            duration: "always",
-          });
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
+  const muteMutate = (ids: string[]) => {
+    ids.forEach((id) => muteMutation.mutate(id));
+    handleClearSelection();
+    Toast.show({
+      type: "native",
+      position: "bottom",
+      text1: "Chat muted successfully",
+      props: { icon: SolidVolumeUp1Svg },
+    });
+  };
 
-  const { mutate: unmuteMutate } = useMutation({
-    onMutate: (ids: string[]) => {
-      updateLocalConversations((c) =>
-        ids.includes(c.id)
-          ? {
-              ...c,
-              settings: {
-                ...c.settings,
-                muted: false,
-                mutedAt: null,
-              },
-            }
-          : c,
-      );
-      handleClearSelection();
-    },
-    onSuccess: () => {
-      Toast.show({
-        type: 'native',
-        position: 'bottom',
-        text1: "Chat un-muted successfully",
-        props: { icon: SolidVolumeUp1Svg },
-      });
-    },
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.unmuteConversation(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
+  const unmuteMutate = (ids: string[]) => {
+    ids.forEach((id) => unmuteMutation.mutate(id));
+    handleClearSelection();
+    Toast.show({
+      type: "native",
+      position: "bottom",
+      text1: "Chat un-muted successfully",
+      props: { icon: SolidVolumeUp1Svg },
+    });
+  };
 
-  const { mutate: deleteMutate } = useMutation({
-    onMutate: (ids: string[]) => {
-      updateLocalConversations((c) =>
-        ids.includes(c.id)
-          ? {
-              ...c,
-              latestMessage: null,
-              unreadCount: 0,
-            }
-          : c,
-      );
-      handleClearSelection();
-    },
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        try {
-          await ConversationService.clearConversationMessages(id);
-        } catch (err) {
-          // ignore error
-        }
-      }
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
+  const deleteMutate = (ids: string[]) => {
+    ids.forEach((id) => deleteMutation.mutate(id));
+    handleClearSelection();
+  };
 
   const handlePin = (conversationId?: string) => {
     if (conversationId) {
