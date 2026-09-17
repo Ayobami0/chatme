@@ -66,6 +66,7 @@ export interface DirectConversationModel extends BaseConversationModel {
 export interface GroupConversationModel extends BaseConversationModel {
   type: 'group';
   name: string;
+  description?: string | null;
   avatarUrl: string | null;
   participants: GroupConversationParticipant[];
   role: GroupMemberRole;

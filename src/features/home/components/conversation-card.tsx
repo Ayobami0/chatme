@@ -179,7 +179,7 @@ export function ConversationCard(props: ConversationCardProps) {
         style={{ backgroundColor: isSelected ? mutedColor : bg }}
         className={`flex-row items-center gap-4 px-3 h-20 transition-colors rounded-xl`}
       >
-        <AppAvatar url={avatarUrl} isOnline={isOnline} />
+        <AppAvatar url={avatarUrl} name={displayName} isOnline={isOnline} />
 
         <View className="flex-1">
           <View className="flex-row items-center justify-between">

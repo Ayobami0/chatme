@@ -12,12 +12,14 @@ import {
   OutlinePaperClipSvg,
   SolidPaperAirplaneSvg,
   SolidPhoneSvg,
+  SolidUserGroupSvg,
   SolidVideoCameraSvg,
 } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
 import {
   ConversationModel,
   ConversationReceiptsState,
+  GroupConversationModel,
   GroupConversationParticipant,
   MessageModel,
 } from "@shared/types/models";
@@ -91,7 +93,7 @@ export default function ChatScreen(props: ChatScreenProps) {
     queryFn: () => ConversationService.getConversationMessages(conversationId),
   });
 
-  const { data: conversation } = useQuery({
+  const { data: conversation, refetch: refetchConversation } = useQuery({
     queryKey: ["conversation", conversationId],
     queryFn: () => ConversationService.getConversationById(conversationId),
   });
@@ -117,6 +119,9 @@ export default function ChatScreen(props: ChatScreenProps) {
   const { mutate: markAllAsRead } = useMutation({
     mutationFn: (convId: string) =>
       ConversationService.markAllConversationMessagesAsRead(convId),
+    onSettled: () => {
+      void refetchConversation();
+    },
   });
 
   useEffect(() => {
@@ -126,6 +131,7 @@ export default function ChatScreen(props: ChatScreenProps) {
       scrollRef.current?.scrollToEnd({ animated: true }),
     );
   }, [conversationId, loadMessagesForConversation, markAllAsRead]);
+
 
   useEffect(() => {
     if (data?.items) {
@@ -353,6 +359,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         receiptsList={receiptsList}
         typing={otherPaticipantTyping}
         ref={scrollRef}
+        conversation={conversation}
       />
       <ChatFooter onSend={sendMessage} onFocus={() => {}} />
     </AppView>
@@ -405,16 +412,26 @@ function ChatHeader(props: {
 
   return (
     <View className="bg-primary pt-safe pb-4 px-6">
-      <View className="flex-row items-center pt-2">
+      <Pressable
+        className="flex-row items-center pt-2"
+        onPress={() => {
+          return router.push(`/chat/${props.conversation?.id}/chat-info`);
+        }}
+      >
         <Pressable onPress={router.back} className="mr-2">
           <OutlineCheveronLeftSvg width={24} height={24} color={iconColor} />
         </Pressable>
         {/* @ts-ignore */}
-        <AppAvatar url={props.url} radius={48} isOnline={false} bordered />
+        <AppAvatar url={props.url} name={props.fullName} radius={48} isOnline={false} bordered />
         <View className="flex-1 mx-3">
-          <AppText size={18} color="onPrimary" variant="h5">
-            {props.fullName}
-          </AppText>
+          <View className="flex-row gap-2">
+            {props.conversation?.type === "group" && (
+              <SolidUserGroupSvg color={iconColor} />
+            )}
+            <AppText size={18} color="onPrimary" variant="h5">
+              {props.fullName}
+            </AppText>
+          </View>
           <AppText size={14} color="onPrimary" variant="body-md-regular">
             {props.conversation?.type === "group"
               ? formatParticipants(props.conversation.participants)
@@ -429,7 +446,7 @@ function ChatHeader(props: {
             <SolidPhoneSvg color={iconColor} />
           </Pressable>
         </View>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -445,6 +462,7 @@ function ChatBody(props: {
     read?: { messageId: string; at: string } | null;
   }>;
   typing?: boolean;
+  conversation?: ConversationModel | GroupConversationModel;
   ref: React.RefObject<Animated.ScrollView | null>;
 }) {
   const {
@@ -454,6 +472,7 @@ function ChatBody(props: {
     receiptsList,
     typing = true,
     ref: scrollRef,
+    conversation,
   } = props;
   const { user } = useAuth();
 
@@ -503,6 +522,25 @@ function ChatBody(props: {
     return "sent";
   };
 
+  const isGroupChat = conversation?.type === "group";
+  const groupParticipants =
+    conversation?.type === "group"
+      ? (conversation as GroupConversationModel).participants
+      : [];
+
+  const participantsMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { displayName?: string | null; avatarUrl?: string | null }
+    >();
+    if (groupParticipants) {
+      for (const p of groupParticipants) {
+        map.set(p.id, { displayName: p.displayName, avatarUrl: p.avatarUrl });
+      }
+    }
+    return map;
+  }, [groupParticipants]);
+
   if (combinedMessages.length === 0 && !typing) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -521,6 +559,12 @@ function ChatBody(props: {
         showsVerticalScrollIndicator={false}
       >
         {combinedMessages.map((message, index) => {
+          const participant = groupParticipants.find(
+            (p) => p.id === message.senderId,
+          );
+          const profileUrl = participant?.avatarUrl;
+          const fullName = participant?.displayName;
+
           const currentDateLabel = formatMessageDateSeparator(
             message.createdAt,
           );
@@ -532,6 +576,7 @@ function ChatBody(props: {
               : null;
 
           const showDateHeader = currentDateLabel !== prevDateLabel;
+          const senderInfo = participantsMap.get(message.senderId);
 
           return (
             <View key={message.id} className="gap-3">
@@ -551,11 +596,24 @@ function ChatBody(props: {
               <ChatBubble
                 message={message}
                 state={getMessageState(message, index)}
+                forGroup={isGroupChat}
+                sender={{
+                  displayName:
+                    senderInfo?.displayName ??
+                    (message.senderId === participant?.id
+                      ? fullName
+                      : undefined),
+                  avatarUrl:
+                    senderInfo?.avatarUrl ??
+                    (message.senderId === participant?.id
+                      ? profileUrl
+                      : undefined),
+                }}
               />
             </View>
           );
         })}
-        {typing && <TypingChatBubble />}
+        {typing && <TypingChatBubble forGroup={isGroupChat} />}
       </Animated.ScrollView>
     </View>
   );

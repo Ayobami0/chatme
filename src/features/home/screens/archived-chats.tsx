@@ -14,22 +14,22 @@ export default function ArchivedChatsScreen() {
   const queryClient = useQueryClient();
   const { socket, status } = useRealtime();
 
-  const cachedConversations = useCacheStore((s) => s.conversations);
-  const setConversations = useCacheStore((s) => s.setConversations);
+  // const cachedConversations = useCacheStore((s) => s.conversations);
+  // const setConversations = useCacheStore((s) => s.setConversations);
 
-  const { data, refetch, isRefetching } = useQuery({
-    queryKey: ["conversations"],
+  const { data, refetch } = useQuery({
+    queryKey: ["archivedConversations"],
     queryFn: async () => {
-      const response = await ConversationService.getConversations();
+      const response = await ConversationService.getArchivedConversations();
       return response.items;
     },
   });
 
-  useEffect(() => {
-    if (data) {
-      setConversations(data);
-    }
-  }, [data, setConversations]);
+  // useEffect(() => {
+  //   if (data) {
+  //     setConversations(data);
+  //   }
+  // }, [data, setConversations]);
 
   useEffect(() => {
     if (!socket || status !== "connected") return;
@@ -45,12 +45,7 @@ export default function ArchivedChatsScreen() {
     };
   }, [socket, status, queryClient]);
 
-  const conversations =
-    cachedConversations.length > 0 ? cachedConversations : (data ?? []);
-
-  const archivedConversations = conversations.filter(
-    (c) => c.settings?.archived === true,
-  );
+  const conversations = data ?? [];
 
   const toggleSelectConversation = (id: string) => {
     setSelectedIds((prev) =>
@@ -200,7 +195,7 @@ export default function ArchivedChatsScreen() {
 
       <View className="relative flex-1 mx-6 mt-3">
         <FlatList
-          data={archivedConversations}
+          data={conversations}
           keyExtractor={(item) => item.id}
           ItemSeparatorComponent={<View className="h-2" />}
           renderItem={({ item }) => (
@@ -216,7 +211,7 @@ export default function ArchivedChatsScreen() {
             />
           )}
           contentContainerStyle={
-            archivedConversations.length === 0
+            conversations.length === 0
               ? { flex: 1, justifyContent: "center", alignItems: "center" }
               : undefined
           }

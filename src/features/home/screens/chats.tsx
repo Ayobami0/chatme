@@ -17,9 +17,10 @@ import { ConversationModel } from "@shared/types/models";
 import { router } from "expo-router";
 import Toast from "react-native-toast-message";
 import { SolidArchiveSvg, SolidPushPinSvg, SolidVolumeUp1Svg } from "@shared/components/svgs/icons";
+import StorageService, { StorageKey } from "@services/storage";
 
 export default function ChatsScreen() {
-  const [pinModalVisible, setPinModalVIsible] = useState(false);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
   const [showFabOptions, setShowFabOptions] = useState(false);
   const [showContactList, setShowContactList] = useState(false);
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
@@ -35,11 +36,26 @@ export default function ChatsScreen() {
   const setConversations = useCacheStore((s) => s.setConversations);
 
   useEffect(() => {
-    setPinModalVIsible(true);
+    void (async () => {
+      const hasSeenPinPrompt = await StorageService.get<boolean>(
+        StorageKey.HasSeenPinPrompt,
+      );
+      if (!hasSeenPinPrompt) {
+        setPinModalVisible(true);
+      }
+    })();
     void hydrateCache();
   }, [hydrateCache]);
 
-  const { data, refetch, isRefetching } = useQuery({
+  const { data: archivedConversationsResp, refetch: refetchArcchived } = useQuery({
+    queryKey: ["archivedConversations"],
+    queryFn: async () => {
+      const response = await ConversationService.getArchivedConversations();
+      return response.items;
+    },
+  });
+
+  const { data, refetch } = useQuery({
     queryKey: ["conversations"],
     queryFn: async () => {
       const response = await ConversationService.getConversations();
@@ -76,9 +92,8 @@ export default function ChatsScreen() {
       ? cachedConversations
       : [...(data ?? []), ...DUMMY_CONVERSATIONS];
 
-  const archivedConversations = conversations.filter(
-    (c) => c.settings?.archived === true,
-  );
+  const archivedConversations = archivedConversationsResp ?? [];
+
   const activeConversations = conversations.filter(
     (c) => c.settings?.archived !== true,
   );
@@ -543,8 +558,9 @@ export default function ChatsScreen() {
       {pinModalVisible && (
         <PinCodeModal
           isVisible={pinModalVisible}
-          onClose={() => {
-            setPinModalVIsible(false);
+          onClose={async () => {
+            setPinModalVisible(false);
+            await StorageService.save(StorageKey.HasSeenPinPrompt, true);
           }}
         />
       )}

@@ -1,5 +1,6 @@
 import { AppBlurView, AppMediaAction, AppMediaUpload, AppView } from "@components";
 import { SolidCameraSvg, SolidPhotographSvg } from "@shared/components/svgs/icons";
+import * as ImagePicker from "expo-image-picker";
 import { Modal, Pressable, View } from "react-native";
 
 type ImagePickerModalProps = {
@@ -9,6 +10,32 @@ type ImagePickerModalProps = {
 
 export default function ImagePickerModal(props: ImagePickerModalProps) {
   const { isVisible, onClose } = props;
+
+  const handleTakePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      onClose(result.assets[0].uri);
+    }
+  };
+
+  const handleChooseFromLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      onClose(result.assets[0].uri);
+    }
+  };
 
   return (
     <Modal
@@ -26,12 +53,12 @@ export default function ImagePickerModal(props: ImagePickerModalProps) {
             <AppMediaAction
               icon={SolidCameraSvg}
               label="Take Photo"
-              onPress={() => {}}
+              onPress={handleTakePhoto}
             />
             <AppMediaAction
               icon={SolidPhotographSvg}
               label="Choose from library"
-              onPress={() => {}}
+              onPress={handleChooseFromLibrary}
             />
           </AppMediaUpload>
         </Pressable>

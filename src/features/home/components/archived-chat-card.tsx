@@ -16,7 +16,7 @@ export function ArchivedChatCard({ count, onPress }: ArchivedChatCardProps) {
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center justify-between p-3 h-14 rounded-xl mb-2"
+      className="flex-row items-center justify-between p-3 h-14 rounded-xl my-2"
     >
       <View className="flex-row items-center gap-3">
         <View className="size-16 items-center justify-center rounded-full bg-primary-400">

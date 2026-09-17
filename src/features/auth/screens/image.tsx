@@ -1,7 +1,9 @@
 import { AppButton, AppHeader, AppText, AppView } from "@components";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { View } from "react-native";
+import { useUpload } from "@shared/hooks/use-upload";
+import { log } from "@core/logging";
 import {
   ImageIllustration,
   ImageIllustrationState,
@@ -9,22 +11,30 @@ import {
 import ImagePickerModal from "../components/image-picker-modal";
 
 export default function ProfileImageScreen() {
-  const [imageState, setImageState] = useState<ImageIllustrationState>("idle");
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [uploadedImageUri, setUploadedImageUri] = useState<string | undefined>(
-    undefined,
-  );
+  const [localUri, setLocalUri] = useState<string | undefined>(undefined);
+
+  const { upload, isPending, file } = useUpload({
+    purpose: "profile_avatar",
+  });
+
+  const imageState: ImageIllustrationState = isPending
+    ? "uploading"
+    : file?.secureUrl || localUri
+      ? "uploaded"
+      : "idle";
 
   const showPickerModal = () => {
     setIsModalVisible(true);
   };
 
-  const handleUpload = (imageUri: string) => {
-    setImageState("uploading");
-    setTimeout(() => {
-      setImageState("uploaded");
-      setUploadedImageUri(imageUri);
-    }, 3000);
+  const handleUpload = async (imageUri: string) => {
+    setLocalUri(imageUri);
+    try {
+      await upload({ uri: imageUri });
+    } catch (err) {
+      log.error("Failed to upload image", err);
+    }
   };
 
   return (
@@ -37,7 +47,7 @@ export default function ProfileImageScreen() {
         <View className="flex-1 justify-center items-center w-full">
           <ImageIllustration
             state={imageState}
-            uploadedImageUri={uploadedImageUri}
+            uploadedImageUri={file?.secureUrl || localUri}
           />
           <View className="w-[186]">
             {imageState !== "idle" && (

@@ -1,4 +1,5 @@
 import { AppText } from "@components";
+import { AppAvatar } from "@shared/components/app-avatar";
 import {
   OutlineCheckSvg,
   OutlineClockSvg,
@@ -23,16 +24,30 @@ export type MessageState =
 type ChatBubbleProps = {
   message: MessageModel;
   state: MessageState;
+  forGroup?: boolean;
+  sender?: {
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  };
 };
 
 export function ChatBubble(props: ChatBubbleProps) {
-  const { message, state } = props;
+  const {
+    message,
+    state,
+    forGroup = false,
+    sender,
+  } = props;
   const formatedDate = formatMessageTime(new Date(message.createdAt));
   const { user } = useAuth();
   const isMine = message.senderId === user?.id;
   const subtextColor = useThemeColor("subtext");
   const primaryColor = useThemeColor("primary");
   const dangerColor = useThemeColor("danger");
+
+  const effectiveSenderName = sender?.displayName;
+  const effectiveSenderAvatarUrl = sender?.avatarUrl;
+  const showGroupSender = forGroup && !isMine;
 
   const StateIcon = () => {
     switch (state) {
@@ -67,8 +82,15 @@ export function ChatBubble(props: ChatBubbleProps) {
 
   return (
     <View
-      className={`flex-row justify-end ${isMine ? "" : "flex-row-reverse"} items-center mx-6 gap-3`}
+      className={`flex-row items-end mx-6 gap-2.5 ${isMine ? "justify-end" : "justify-start"}`}
     >
+      {showGroupSender && (
+        <AppAvatar
+          url={effectiveSenderAvatarUrl}
+          radius={32}
+          isOnline={false}
+        />
+      )}
       <View className="max-w-[70%]">
         <View
           style={{
@@ -80,6 +102,15 @@ export function ChatBubble(props: ChatBubbleProps) {
           }}
           className={`rounded-2xl ${isMine ? "bg-primary rounded-br-none" : "bg-secondary rounded-bl-none"} py-3 px-4`}
         >
+          {showGroupSender && effectiveSenderName && (
+            <AppText
+              variant="body-sm-semibold"
+              color="primary"
+              className="mb-1"
+            >
+              {effectiveSenderName}
+            </AppText>
+          )}
           <AppText
             color={isMine ? "onPrimary" : "body"}
             variant="body-md-medium"
@@ -100,9 +131,20 @@ export function ChatBubble(props: ChatBubbleProps) {
   );
 }
 
-export function TypingChatBubble() {
+export function TypingChatBubble(props?: {
+  forGroup?: boolean;
+  senderAvatarUrl?: string | null;
+}) {
+  const { forGroup = false, senderAvatarUrl } = props ?? {};
   return (
-    <View className="flex-row items-center mx-6 gap-3">
+    <View className="flex-row items-end mx-6 gap-2.5 justify-start">
+      {forGroup && (
+        <AppAvatar
+          url={senderAvatarUrl}
+          radius={32}
+          isOnline={false}
+        />
+      )}
       <View
         style={{
           shadowColor: "#183421",
