@@ -15,12 +15,7 @@ import {
 } from "@features/home/query";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import { log } from "@core/logging";
 
@@ -45,14 +40,14 @@ export function EditGroupModal({
   );
   const [hasNewImage, setHasNewImage] = useState(false);
 
-  const { uploadAsync, isPending: isUploading } = useUpload();
+  const { uploadAsync, isPending: isUploading } = useUpload({
+    purpose: "group_avatar",
+  });
   const updateGroupMutation = useUpdateGroupConversation();
   const setAvatarMutation = useSetGroupAvatar();
 
   const isSaving =
-    isUploading ||
-    updateGroupMutation.isPending ||
-    setAvatarMutation.isPending;
+    isUploading || updateGroupMutation.isPending || setAvatarMutation.isPending;
 
   useEffect(() => {
     if (isVisible) {
@@ -178,11 +173,7 @@ export function EditGroupModal({
             disabled={!isChanged || groupName.trim().length === 0 || isSaving}
             onPress={handleSave}
           >
-            {isSaving ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              "Save Changes"
-            )}
+            {isSaving ? <ActivityIndicator color="#FFF" /> : "Save Changes"}
           </AppButton>
         </BottomSheetView>
       </BottomSheet>

@@ -10,16 +10,11 @@ import { useAuth } from "@shared/context/auth-context";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { MessageModel } from "@shared/types/models";
 import { formatMessageTime } from "@shared/utils/datetime";
-import { View } from "react-native";
+import { Image } from "expo-image";
+import { FlatList, View } from "react-native";
 
 export type MessageState =
-  | "pending"
-  | "sent"
-  | "success"
-  | "delivered"
-  | "read"
-  | "viewed"
-  | "error";
+  "pending" | "sent" | "success" | "delivered" | "read" | "viewed" | "error";
 
 type ChatBubbleProps = {
   message: MessageModel;
@@ -32,12 +27,7 @@ type ChatBubbleProps = {
 };
 
 export function ChatBubble(props: ChatBubbleProps) {
-  const {
-    message,
-    state,
-    forGroup = false,
-    sender,
-  } = props;
+  const { message, state, forGroup = false, sender } = props;
   const formatedDate = formatMessageTime(new Date(message.createdAt));
   const { user } = useAuth();
   const isMine = message.senderId === user?.id;
@@ -52,14 +42,10 @@ export function ChatBubble(props: ChatBubbleProps) {
   const StateIcon = () => {
     switch (state) {
       case "pending":
-        return (
-          <OutlineClockSvg width={16} height={16} color={subtextColor} />
-        );
+        return <OutlineClockSvg width={16} height={16} color={subtextColor} />;
       case "sent":
       case "success":
-        return (
-          <OutlineCheckSvg width={16} height={16} color={subtextColor} />
-        );
+        return <OutlineCheckSvg width={16} height={16} color={subtextColor} />;
       case "delivered":
         return (
           <OutlineDoubleCheckSvg width={16} height={16} color={subtextColor} />
@@ -80,16 +66,14 @@ export function ChatBubble(props: ChatBubbleProps) {
     }
   };
 
+  const hasAttachments = message.attachments && message.attachments.length > 0;
+
   return (
     <View
       className={`flex-row items-end mx-6 gap-2.5 ${isMine ? "justify-end" : "justify-start"}`}
     >
       {showGroupSender && (
-        <AppAvatar
-          url={effectiveSenderAvatarUrl}
-          size={32}
-          isOnline={false}
-        />
+        <AppAvatar url={effectiveSenderAvatarUrl} size={32} isOnline={false} />
       )}
       <View className="max-w-[70%]">
         <View
@@ -100,23 +84,25 @@ export function ChatBubble(props: ChatBubbleProps) {
             shadowRadius: 8,
             elevation: 3,
           }}
-          className={`rounded-2xl ${isMine ? "bg-primary rounded-br-none" : "bg-secondary rounded-bl-none"} py-3 px-4`}
+          className={`gap-1 rounded-2xl ${isMine ? "bg-primary rounded-br-none" : "bg-secondary rounded-bl-none"} py-3 px-4`}
         >
           {showGroupSender && effectiveSenderName && (
             <AppText
               variant="body-sm-semibold"
               color="primary"
-              className="mb-1"
             >
               {effectiveSenderName}
             </AppText>
           )}
-          <AppText
-            color={isMine ? "onPrimary" : "body"}
-            variant="body-md-medium"
-          >
-            {message.text}
-          </AppText>
+          {hasAttachments && <ChatBubbleImageAttachment message={message} />}
+          {message.text && (
+            <AppText
+              color={isMine ? "onPrimary" : "body"}
+              variant="body-md-medium"
+            >
+              {message.text}
+            </AppText>
+          )}
         </View>
         <View
           className={`flex-row flex-1 items-center ${isMine ? "justify-end" : "justify-start pl-1"}`}
@@ -139,11 +125,7 @@ export function TypingChatBubble(props?: {
   return (
     <View className="flex-row items-end mx-6 gap-2.5 justify-start">
       {forGroup && (
-        <AppAvatar
-          url={senderAvatarUrl}
-          size={32}
-          isOnline={false}
-        />
+        <AppAvatar url={senderAvatarUrl} size={32} isOnline={false} />
       )}
       <View
         style={{
@@ -161,6 +143,63 @@ export function TypingChatBubble(props?: {
           <View className="size-2 bg-body rounded-full animate-pulse"></View>
         </View>
       </View>
+    </View>
+  );
+}
+
+function ChatBubbleImageAttachment({ message }: { message: MessageModel }) {
+  if (message.attachments?.length == 1)
+    return (
+      <View className="size-[200]">
+        <View className="flex-1">
+          <Image
+            source={{ uri: message.attachments[0].url }}
+            style={{ height: "100%", width: "100%", borderRadius: 8 }}
+          />
+        </View>
+      </View>
+    );
+
+  if (message.attachments?.length == 2)
+    return (
+      <View className="size-[200]">
+        <View className="flex-1 gap-2">
+          {message.attachments.map((item, i) => (
+            <View key={i} className="flex-1">
+              <Image
+                source={{ uri: item.url }}
+                style={{ height: "100%", width: "100%", borderRadius: 8 }}
+              />
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+
+  return (
+    <View className="size-[200] flex-row flex-wrap">
+      {message.attachments!.slice(0, 4).map((item, index) => {
+        const remaining = message.attachments!.length - 4;
+        const isLastVisibleCell = index === 3 && remaining > 0;
+
+        return (
+          <View key={index} className="w-1/2 aspect-square p-0.5">
+            <View className="flex-1 rounded-md overflow-hidden">
+              <Image
+                source={{ uri: item.url ?? "" }}
+                style={{ height: "100%", width: "100%", borderRadius: 8 }}
+              />
+              {isLastVisibleCell && (
+                <View className="absolute inset-0 bg-black/40 items-center justify-center">
+                  <AppText color="onPrimary" variant="h4">
+                    +{remaining}
+                  </AppText>
+                </View>
+              )}
+            </View>
+          </View>
+        );
+      })}
     </View>
   );
 }

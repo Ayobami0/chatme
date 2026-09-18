@@ -15,6 +15,7 @@ export function useConversations() {
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    void queryClient.invalidateQueries({ queryKey: ["archivedConversations"] });
   };
 
   const pinMutation = useMutation({

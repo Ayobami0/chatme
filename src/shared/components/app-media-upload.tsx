@@ -14,7 +14,7 @@ export type AppMediaUploadProps = {
   children: React.ReactNode;
   showRecentImage?: boolean;
   recentImageCount?: number;
-  onRecentImagePicked?: (path?: string) => void;
+  onRecentImagePicked?: (path?: string, data?: AssetInfo) => void;
 };
 
 export type AppMediaActionProps = {

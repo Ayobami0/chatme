@@ -1,6 +1,8 @@
 import {
   AppAvatar,
   AppLinearProgressIndicator,
+  AppMediaAction,
+  AppMediaUpload,
   AppText,
   AppView,
   useRealtime,
@@ -9,17 +11,27 @@ import { ChatBg1Svg } from "@shared/components/svgs/assets";
 import {
   OutlineCheveronLeftSvg,
   OutlinePaperClipSvg,
+  SolidDocumentTextSvg,
+  SolidLocationMarkerSvg,
   SolidPaperAirplaneSvg,
   SolidPhoneSvg,
+  SolidPhotographSvg,
+  SolidUserCircleSvg,
   SolidUserGroupSvg,
   SolidVideoCameraSvg,
+  SolidXCircleSvg,
 } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
 import {
   ConversationModel,
+  DocumentMessageAttachmentModel,
   GroupConversationModel,
   GroupConversationParticipant,
+  ImageMessageAttachmentModel,
+  MessageAttachmentModel,
+  MessageKind,
   MessageModel,
+  VideoMessageAttachmentModel,
 } from "@shared/types/models";
 import {
   formatActiveDateTimeHumanReadable,
@@ -33,7 +45,7 @@ import {
   useConversationReceipts,
 } from "../query";
 import { router } from "expo-router";
-import { Pressable, TextInput, View } from "react-native";
+import { FlatList, Pressable, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import {
   ChatBubble,
@@ -54,6 +66,13 @@ import {
 } from "@shared/types/realtime";
 import { AppColor } from "@shared/theme/color";
 import { colorScheme, useColorScheme } from "nativewind";
+import { MediaType } from "@shared/types/api";
+import { Image } from "expo-image";
+import { useUpload } from "@shared/hooks";
+import {
+  AllowedContentType,
+  getContentTypeFromAsset,
+} from "@shared/utils/file-types";
 
 type ChatScreenProps = {
   conversationId: string;
@@ -65,14 +84,8 @@ type ChatScreenProps = {
 };
 
 export default function ChatScreen(props: ChatScreenProps) {
-  const {
-    conversationId,
-    participantId,
-    profileUrl,
-    fullName,
-    activeAt,
-    isGroup,
-  } = props;
+  const { conversationId, participantId, profileUrl, fullName, activeAt } =
+    props;
   const { socket, status } = useRealtime();
   const typingExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<Animated.ScrollView>(null);
@@ -94,7 +107,8 @@ export default function ChatScreen(props: ChatScreenProps) {
 
   const { data, isFetching } = useConversationMessages(conversationId);
   const conversationQuery = useConversationDetails(conversationId);
-  const { data: conversation, refetch: refetchConversation } = conversationQuery;
+  const { data: conversation, refetch: refetchConversation } =
+    conversationQuery;
 
   const sendMessageMutation = useSendMessage(conversationId);
   const mutateAsync = sendMessageMutation.mutateAsync;
@@ -110,6 +124,10 @@ export default function ChatScreen(props: ChatScreenProps) {
 
   const markAllAsReadMutation = useMarkAllAsRead();
   const markAllAsRead = markAllAsReadMutation.mutate;
+
+  const { upload } = useUpload({
+    purpose: "message_attachment",
+  });
 
   useEffect(() => {
     void loadMessagesForConversation(conversationId);
@@ -277,15 +295,34 @@ export default function ChatScreen(props: ChatScreenProps) {
     }, delay);
   }, []);
 
-  const sendMessage = (text: string) => {
+  const sendMessage = async (
+    text: string,
+    kind?: MessageKind,
+    attachments?: Attachment[],
+  ) => {
     const id = Crypto.randomUUID();
+
+    let convertedAttachments: MessageAttachmentModel[] | undefined;
+    if (attachments && attachments.length > 0) {
+      // @ts-ignore
+      convertedAttachments = attachments.map((a) => ({
+        url: a.attachmentUrl,
+        mediaId: "",
+        type: a.type,
+        sizeBytes: a.sizeBytes,
+        filename: a.fileName,
+        contentType: a.contentType,
+      }));
+    }
+    console.log("Converted attachments", convertedAttachments);
     const message: MessageModel = {
       id,
       conversationId: conversationId,
       clientMessageId: id,
       senderId: user?.id ?? "user_1",
-      kind: "text",
+      kind: kind ?? "text",
       text,
+      attachments: convertedAttachments,
       createdAt: new Date().toISOString(),
     };
 
@@ -293,22 +330,32 @@ export default function ChatScreen(props: ChatScreenProps) {
       ...m,
       [id]: message,
     }));
+    try {
+      const data = await Promise.all(
+        convertedAttachments?.map((e) =>
+          upload({ uri: e.url, contentType: e.contentType }),
+        ) ?? [],
+      );
 
-    mutateAsync({ id, text })
-      .then((d) => {
-        setPendingMessages((m) => {
-          const { [id]: _removed, ...rest } = m;
-          return rest;
-        });
-        addOrUpdateMessage(conversationId, d);
-      })
-      .catch(() => {
-        setPendingMessages((m) => {
-          const { [id]: _removed, ...rest } = m;
-          return rest;
-        });
-        setFailedMessages((m) => ({ ...m, [id]: message }));
+      const ids = data?.map((d) => d?.id);
+
+      const d = await mutateAsync({
+        text,
+        id,
+        attachmentMediaIds: kind !== "text" ? ids : undefined,
       });
+      setPendingMessages((m) => {
+        const { [id]: _removed, ...rest } = m;
+        return rest;
+      });
+      addOrUpdateMessage(conversationId, d);
+    } catch (e) {
+      setPendingMessages((m) => {
+        const { [id]: _removed, ...rest } = m;
+        return rest;
+      });
+      setFailedMessages((m) => ({ ...m, [id]: message }));
+    }
   };
 
   const chatBg =
@@ -403,7 +450,13 @@ function ChatHeader(props: {
           <OutlineCheveronLeftSvg width={24} height={24} color={iconColor} />
         </Pressable>
         {/* @ts-ignore */}
-        <AppAvatar url={props.url} name={props.fullName} size={48} isOnline={false} bordered />
+        <AppAvatar
+          url={props.url}
+          name={props.fullName}
+          size={48}
+          isOnline={false}
+          bordered
+        />
         <View className="flex-1 mx-3">
           <View className="flex-row gap-2">
             {props.conversation?.type === "group" && (
@@ -601,7 +654,11 @@ function ChatBody(props: {
 }
 
 function ChatFooter(props: {
-  onSend: (text: string) => void;
+  onSend: (
+    text: string,
+    kind?: MessageKind,
+    attachments?: Attachment[],
+  ) => void;
   onFocus?: () => void;
 }) {
   const [text, setText] = useState("");
@@ -609,40 +666,147 @@ function ChatFooter(props: {
   const clipIconColor = useThemeColor("subtext");
   const sendIconColor = useThemeColor("primary-foreground");
   const placeholderColor = useThemeColor("placeholder");
+  const [showMediaSelection, setShowMediaSelection] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   return (
-    <View
-      style={{
-        shadowColor: "#274431",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 24,
-        elevation: 2,
-      }}
-      className="bg-background gap-3 py-4 px-3 flex-row items-center mx-6 mb-5 rounded-full"
-    >
-      <Pressable className="rounded-full size-10 items-center justify-center bg-surface">
-        <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />
-      </Pressable>
-      <TextInput
-        onFocus={props.onFocus}
-        ref={inputRef}
-        className="flex-1 text-title"
-        onChangeText={setText}
-        placeholder="Start typing..."
-        placeholderTextColor={placeholderColor}
-      />
-      <Pressable
-        className="size-10 rounded-full bg-primary items-center justify-center"
-        onPress={() => {
-          if (text.trim()) {
-            props.onSend(text);
-            inputRef.current?.clear();
-          }
+    <View className="gap-2">
+      {attachments.length > 0 && (
+        <FlatList
+          horizontal
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsHorizontalScrollIndicator={false}
+          data={attachments}
+          keyExtractor={(_, i) => i.toString()}
+          ItemSeparatorComponent={() => <View className="w-2" />}
+          renderItem={({ item, index }) => {
+            return (
+              <View
+                className={`size-16 overflow-hidden rounded-lg ${index === 0 ? "ml-2" : ""} ${index === attachments.length - 1 ? "mr-2" : ""}`}
+              >
+                <AttachmentCard
+                  attachment={item}
+                  onRemove={() => {
+                    setAttachments((a) => a.filter((item2) => item2 !== item));
+                  }}
+                />
+              </View>
+            );
+          }}
+        />
+      )}
+      {showMediaSelection && (
+        <View className="mx-6">
+          <AppMediaUpload
+            showRecentImage
+            onRecentImagePicked={(uri, data) => {
+              if (uri) {
+                setAttachments((a) => [
+                  ...a,
+                  {
+                    type: "image",
+                    attachmentUrl: uri,
+                    sizeBytes: 0,
+                    fileName: data?.filename ?? "",
+                    contentType: getContentTypeFromAsset({ uri }),
+                  },
+                ]);
+                setShowMediaSelection(false);
+              }
+            }}
+          >
+            <AppMediaAction
+              icon={SolidPhotographSvg}
+              label={"Photo or Gallery"}
+              onPress={function (): void {}}
+            />
+            <AppMediaAction
+              icon={SolidDocumentTextSvg}
+              label={"Document"}
+              onPress={function (): void {}}
+            />
+          </AppMediaUpload>
+        </View>
+      )}
+      <View
+        style={{
+          shadowColor: "#274431",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.02,
+          shadowRadius: 24,
+          elevation: 2,
         }}
+        className="bg-background gap-3 py-4 px-3 flex-row items-center mx-6 mb-5 rounded-full"
       >
-        <SolidPaperAirplaneSvg color={sendIconColor} />
-      </Pressable>
+        <Pressable
+          onPress={() => {
+            setShowMediaSelection(!showMediaSelection);
+          }}
+          className="rounded-full size-10 items-center justify-center bg-surface bg-"
+        >
+          <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />
+        </Pressable>
+        <TextInput
+          onFocus={props.onFocus}
+          ref={inputRef}
+          className="flex-1 text-title"
+          onChangeText={setText}
+          placeholder="Start typing..."
+          placeholderTextColor={placeholderColor}
+        />
+        <Pressable
+          className="size-10 rounded-full bg-primary items-center justify-center"
+          onPress={() => {
+            if (text.trim() || attachments.length > 0) {
+              props.onSend(
+                text,
+                attachments.length > 0 ? "image" : "text",
+                attachments,
+              );
+              inputRef.current?.clear();
+              setText("");
+              setAttachments([]);
+            }
+          }}
+        >
+          <SolidPaperAirplaneSvg color={sendIconColor} />
+        </Pressable>
+      </View>
     </View>
   );
 }
+
+const AttachmentCard = ({
+  attachment,
+  onRemove,
+}: {
+  attachment: Attachment;
+  onRemove: () => void;
+}) => {
+  return (
+    <View className="relative size-16 overflow-visible">
+      <SolidXCircleSvg
+        style={{ position: "absolute", top: -5, right: -5, zIndex: 1 }}
+        color={AppColor.danger}
+        onPress={() => {
+          onRemove();
+        }}
+      />
+
+      <View className="size-full overflow-hidden rounded-lg">
+        <Image
+          source={{ uri: attachment.attachmentUrl }}
+          style={{ width: "100%", height: "100%" }}
+        />
+      </View>
+    </View>
+  );
+};
+
+type Attachment = {
+  type: "audio" | "image" | "video" | "document";
+  attachmentUrl: string;
+  sizeBytes: number;
+  fileName: string;
+  contentType: AllowedContentType | undefined;
+};

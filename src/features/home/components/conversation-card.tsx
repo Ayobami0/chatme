@@ -24,6 +24,7 @@ import { PresenceChangedEventPayload } from "@shared/types/realtime";
 
 import * as Haptics from "expo-haptics";
 import { useColorScheme } from "nativewind";
+import { useAuth } from "@shared/context/auth-context";
 
 type ConversationCardProps = {
   conversation: ConversationModel;
@@ -78,6 +79,7 @@ export function ConversationCard(props: ConversationCardProps) {
   const isPinned = conversation.settings?.pinned ?? false;
   const isArchived = conversation.settings?.archived ?? false;
   const isGroup = conversation.type === "group";
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!socket || status !== "connected" || !isDirect || !otherParticipant)
@@ -103,7 +105,7 @@ export function ConversationCard(props: ConversationCardProps) {
       // @ts-ignore
       pathname: `/chat/${conversation.id}`,
       params: {
-        isGroup: String(conversation.type === 'group'),
+        isGroup: String(conversation.type === "group"),
         activeAt: conversation.lastActivityAt ?? "",
         participantId: isDirect ? conversation.otherParticipant.id : "",
         displayName: encodeURIComponent(displayName),
@@ -219,6 +221,7 @@ export function ConversationCard(props: ConversationCardProps) {
               numberOfLines={1}
               className="mr-2 flex-1"
             >
+              {conversation.latestMessage?.senderId === user?.id && "You: "}
               {conversation.latestMessage?.preview}
             </AppText>
 

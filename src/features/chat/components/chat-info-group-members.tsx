@@ -5,6 +5,7 @@ import {
   GroupConversationModel,
   GroupConversationParticipant,
 } from "@shared/types/models";
+import { formatActiveDateTimeHumanReadable } from "@shared/utils/datetime";
 import { View } from "react-native";
 
 type ChatInfoGroupMembersProps = {
@@ -48,7 +49,9 @@ function GroupMemberCard({
       />
       <View className="gap-1 py-2">
         <AppText variant='body-lg-semibold'>{participant.displayName}</AppText>
-        <AppText variant='body-lg-regular' color="primary">Online</AppText>
+        <AppText variant='body-lg-regular' color="subtext">
+          {participant.role}
+        </AppText>
       </View>
     </View>
   );

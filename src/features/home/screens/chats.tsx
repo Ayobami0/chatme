@@ -16,7 +16,11 @@ import { useCacheStore } from "@shared/store/cache";
 import { ConversationModel } from "@shared/types/models";
 import { router } from "expo-router";
 import Toast from "react-native-toast-message";
-import { SolidArchiveSvg, SolidPushPinSvg, SolidVolumeUp1Svg } from "@shared/components/svgs/icons";
+import {
+  SolidArchiveSvg,
+  SolidPushPinSvg,
+  SolidVolumeUp1Svg,
+} from "@shared/components/svgs/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import StorageService, { StorageKey } from "@services/storage";
 
@@ -44,7 +48,8 @@ export default function ChatsScreen() {
   const { refetch } = conversationsQuery;
 
   const { archivedQuery } = useArchivedConversations();
-  const { data: archivedConversationsResp, refetch: refetchArcchived } = archivedQuery;
+  const { data: archivedConversationsResp, refetch: refetchArcchived } =
+    archivedQuery;
 
   const { socket, status, activityVersion, reconcileVersion } = useRealtime();
 
@@ -321,6 +326,10 @@ export default function ChatsScreen() {
             archivedConversations.length <= 0 ? null : (
               <ArchivedChatCard
                 count={archivedConversations.length}
+                messageCount={archivedConversations.reduce(
+                  (acc, e) => acc + e.unreadCount,
+                  0,
+                )}
                 onPress={() => router.push("/archived")}
               />
             )

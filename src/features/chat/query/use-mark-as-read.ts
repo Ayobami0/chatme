@@ -12,6 +12,7 @@ export function useMarkAllAsRead() {
         queryKey: ["conversationMessages", conversationId],
       });
       void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({ queryKey: ["archivedConversations"] });
     },
   });
 }

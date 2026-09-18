@@ -5,11 +5,20 @@ export function useSendMessage(conversationId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ text, id }: { text: string; id: string }) => {
+    mutationFn: async ({
+      text,
+      id,
+      attachmentMediaIds,
+    }: {
+      text: string;
+      id: string;
+      attachmentMediaIds?: string[];
+    }) => {
       if (!conversationId) throw new Error("Conversation ID required");
       return await ConversationService.sendMessage(conversationId, {
         text,
         clientMessageId: id,
+        attachmentMediaIds
       });
     },
     onSuccess: () => {

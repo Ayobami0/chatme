@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
+import { CreateGroupConversationDto } from "@shared/types/api";
 
 export function useCreateGroup() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { name: string; participantIds: string[] }) =>
+    mutationFn: (payload: CreateGroupConversationDto) =>
       ConversationService.createGroupConversation(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["conversations"] });

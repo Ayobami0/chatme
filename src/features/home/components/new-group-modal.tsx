@@ -36,6 +36,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import Toast from "react-native-toast-message";
 import { useCreateGroup, useSearchUsers, useMatchContacts } from "../query";
+import { useUpload } from "@shared/hooks";
 
 type NewGroupModalProps = {
   isVisible: boolean;
@@ -72,6 +73,7 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
     setImage("");
     setGroupDescription("");
   };
+  const { upload, isPending } = useUpload({ purpose: "group_avatar" });
 
   const handleClose = () => {
     resetState();
@@ -94,11 +96,22 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
     });
   };
 
-  const createGroup = () => {
-    createGroupMutation.mutate({
-      name: groupName.trim(),
-      participantIds: selectedUserIds,
-    });
+  const createGroup = async () => {
+    try {
+      const res = await upload(image);
+      await createGroupMutation.mutateAsync({
+        name: groupName.trim(),
+        participantIds: selectedUserIds,
+        avatarMediaId: res?.id,
+      });
+      router.back();
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Unable to creat group",
+        text2: error instanceof Error ? error.message : String(error),
+      });
+    }
   };
 
   return (
@@ -164,11 +177,17 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
             </AppButton>
           ) : (
             <AppButton
-              isLoading={isCreating}
-              disabled={groupName.trim().length === 0 || isCreating}
+              isLoading={isCreating || isPending}
+              disabled={
+                groupName.trim().length === 0 || isCreating || isPending
+              }
               onPress={() => createGroup()}
             >
-              {isCreating ? <ActivityIndicator color="#FFF" /> : "Create Group"}
+              {isCreating || isPending ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                "Create Group"
+              )}
             </AppButton>
           )}
         </BottomSheetView>
@@ -227,7 +246,8 @@ function GroupCreationProgress1({
       onSuccess: ({ matches }) => {
         const hydratedContacts = contacts.map((c) => ({
           ...c,
-          user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)?.user,
+          user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)
+            ?.user,
         }));
         setContacts(hydratedContacts);
         setFetching(false);
@@ -294,11 +314,13 @@ function GroupCreationProgress1({
       avatarUrl: c.user!.avatarUrl ?? undefined,
     }));
 
-  const searchedUsersList = (searchResults?.items ?? []).map((u: ConversationUser) => ({
-    id: u.id,
-    displayName: u.displayName ?? "User",
-    avatarUrl: u.avatarUrl ?? undefined,
-  }));
+  const searchedUsersList = (searchResults?.items ?? []).map(
+    (u: ConversationUser) => ({
+      id: u.id,
+      displayName: u.displayName ?? "User",
+      avatarUrl: u.avatarUrl ?? undefined,
+    }),
+  );
 
   const matchedUsersMap = new Map<
     string,

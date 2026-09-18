@@ -8,9 +8,10 @@ import { Pressable, View } from "react-native";
 type ArchivedChatCardProps = {
   count: number;
   onPress: () => void;
+  messageCount: number;
 };
 
-export function ArchivedChatCard({ count, onPress }: ArchivedChatCardProps) {
+export function ArchivedChatCard({ count, onPress, messageCount }: ArchivedChatCardProps) {
   const { colorScheme } = useColorScheme();
 
   return (
@@ -30,10 +31,10 @@ export function ArchivedChatCard({ count, onPress }: ArchivedChatCardProps) {
         </View>
       </View>
 
-      {count > 0 && (
+      {messageCount > 0 && (
         <View className="px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900">
           <AppText variant="body-md-semibold" color="primary">
-            {count}
+            {messageCount}
           </AppText>
         </View>
       )}
