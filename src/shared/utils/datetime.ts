@@ -6,7 +6,19 @@ export function formatDateTime(date: string | Date): string {
       ? DateTime.fromISO(date)
       : DateTime.fromJSDate(date);
 
-  return dt.toFormat("hh:mm a");
+  if (!dt.isValid) return "";
+
+  const now = DateTime.now();
+
+  if (dt.hasSame(now, "day")) {
+    return dt.toFormat("hh:mm a");
+  }
+
+  if (dt.hasSame(now.minus({ days: 1 }), "day")) {
+    return "Yesterday";
+  }
+
+  return dt.toFormat("dd/MM/yyyy");
 }
 
 export function formatMessageTime(date: Date): string {

@@ -403,7 +403,7 @@ function ChatHeader(props: {
           <OutlineCheveronLeftSvg width={24} height={24} color={iconColor} />
         </Pressable>
         {/* @ts-ignore */}
-        <AppAvatar url={props.url} name={props.fullName} radius={48} isOnline={false} bordered />
+        <AppAvatar url={props.url} name={props.fullName} size={48} isOnline={false} bordered />
         <View className="flex-1 mx-3">
           <View className="flex-row gap-2">
             {props.conversation?.type === "group" && (

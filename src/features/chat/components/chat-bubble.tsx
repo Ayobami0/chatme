@@ -87,7 +87,7 @@ export function ChatBubble(props: ChatBubbleProps) {
       {showGroupSender && (
         <AppAvatar
           url={effectiveSenderAvatarUrl}
-          radius={32}
+          size={32}
           isOnline={false}
         />
       )}
@@ -141,7 +141,7 @@ export function TypingChatBubble(props?: {
       {forGroup && (
         <AppAvatar
           url={senderAvatarUrl}
-          radius={32}
+          size={32}
           isOnline={false}
         />
       )}

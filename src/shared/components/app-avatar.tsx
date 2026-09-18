@@ -5,7 +5,7 @@ type AppAvatarProps = {
   url?: string | null;
   name?: string | null;
   isOnline?: boolean;
-  radius?: number;
+  size?: number;
   bordered?: boolean;
 };
 
@@ -15,7 +15,7 @@ type AppAvatarWithNameProps = {
 } & Omit<AppAvatarProps, "isOnline">;
 
 export function AppAvatar(props: AppAvatarProps) {
-  const { url, name, isOnline = true, radius = 56, bordered = false } = props;
+  const { url, name, isOnline = true, size: radius = 56, bordered = false } = props;
   const initialLetter = name?.trim().charAt(0).toUpperCase() ?? "";
   const hasImage = Boolean(url && url.trim().length > 0);
 

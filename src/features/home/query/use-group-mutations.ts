@@ -35,3 +35,43 @@ export function useCreateDirectConversation() {
     },
   });
 }
+
+export function useUpdateGroupConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      conversationId,
+      data,
+    }: {
+      conversationId: string;
+      data: { name?: string; avatarMediaId?: string | null };
+    }) => ConversationService.updateGroupConversation(conversationId, data),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["conversation", variables.conversationId],
+      });
+    },
+  });
+}
+
+export function useSetGroupAvatar() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      conversationId,
+      mediaId,
+    }: {
+      conversationId: string;
+      mediaId: string;
+    }) => ConversationService.setGroupAvatar(conversationId, { mediaId }),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["conversation", variables.conversationId],
+      });
+    },
+  });
+}

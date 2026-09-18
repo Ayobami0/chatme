@@ -5,6 +5,7 @@ import {
   MediaAssetResponseDto,
   MediaPurpose,
 } from "@shared/types/api";
+import * as Crypto from "expo-crypto";
 
 export interface UploadMediaInput {
   uri: string;
@@ -12,16 +13,19 @@ export interface UploadMediaInput {
   contentType?: string;
   originalFilename?: string;
   sizeBytes?: number;
-  clientUploadId?: string;
 }
 
 export class MediaService {
   static async createUpload(
     data: CreateMediaUploadDto,
   ): Promise<CreateMediaUploadResponseDto> {
+    const payload = {
+      ...data,
+      clientUploadId: data.clientUploadId,
+    };
     const response = await apiClient.post<CreateMediaUploadResponseDto>(
       "/media/uploads",
-      data,
+      payload,
     );
     return response.data;
   }
@@ -52,9 +56,7 @@ export class MediaService {
       else contentType = "image/jpeg";
     }
 
-    const clientUploadId =
-      input.clientUploadId ||
-      `upload_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const clientUploadId = Crypto.randomUUID();
     const purpose = input.purpose || "profile_avatar";
     const sizeBytes = input.sizeBytes || 1;
 
