@@ -8,7 +8,7 @@ import { CACHE_MAX_AGE } from "./index";
 import { PERSISTED_QUERY_ROOTS } from "./keys";
 
 /** Bump when the shape of persisted query data changes, so old caches are discarded. */
-const CACHE_BUSTER = "v1";
+const CACHE_BUSTER = "v2";
 
 /** Keys written by the pre-TanStack Zustand cache; removed so old data cannot leak across accounts. */
 const LEGACY_CACHE_KEYS = ["cache_conversations"];

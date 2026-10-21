@@ -11,7 +11,7 @@ import {
 } from "expo-media-library";
 
 export type AppMediaUploadProps = {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   showRecentImage?: boolean;
   recentImageCount?: number;
   onRecentImagePicked?: (path?: string, data?: AssetInfo) => void;

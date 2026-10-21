@@ -57,3 +57,42 @@ export function withLatestMessage(
     };
   });
 }
+
+/** The cached slice of a conversation's history: oldest-first messages plus how to load older ones. */
+export type MessageWindow = {
+  items: MessageModel[];
+  /** Cursor for the page before `items[0]`; null when there is nothing older. */
+  olderCursor: string | null;
+};
+
+type MessagePage = {
+  items: MessageModel[];
+  pageInfo: { nextCursor: string | null; hasNextPage: boolean };
+};
+
+const pageCursor = (page: MessagePage) =>
+  page.pageInfo.hasNextPage ? page.pageInfo.nextCursor : null;
+
+/**
+ * Merges the newest page into the cached window. If the page doesn't overlap the
+ * cache and more pages exist, messages were missed (e.g. while offline), so the
+ * stale history is dropped rather than leaving a silent gap.
+ */
+export function mergeLatestPage(cached: MessageWindow | undefined, page: MessagePage): MessageWindow {
+  const overlaps =
+    cached?.items.some((c) => page.items.some((p) => isSameMessage(c, p))) ?? false;
+
+  if (!cached || (!overlaps && page.pageInfo.hasNextPage)) {
+    return { items: reconcileMessages([], page.items), olderCursor: pageCursor(page) };
+  }
+
+  return { items: reconcileMessages(cached.items, page.items), olderCursor: cached.olderCursor };
+}
+
+/** Merges an older page fetched with `olderCursor`. */
+export function mergeOlderPage(cached: MessageWindow | undefined, page: MessagePage): MessageWindow {
+  return {
+    items: reconcileMessages(cached?.items ?? [], page.items),
+    olderCursor: pageCursor(page),
+  };
+}
