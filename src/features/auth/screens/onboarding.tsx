@@ -4,6 +4,7 @@ import { AppColor } from "@shared/theme/color";
 import { View } from "react-native";
 import { OnboardingSlide } from "../components";
 import { router } from "expo-router";
+import StorageService, { StorageKey } from "@services/storage";
 
 export default function OnboardingScreen() {
   return (
@@ -19,12 +20,17 @@ export default function OnboardingScreen() {
           </AppText>
           <AppText
             variant="body-md-regular"
-            color='subtext'
+            color="subtext"
             className={`px-6 pb-6 text-center text-[${AppColor.neutral300}]`}
           >
             ChatMe is messaging app that will help you to connect with everyone.
           </AppText>
-          <AppButton onPress={() => router.replace("/signin")}>
+          <AppButton
+            onPress={async () => {
+              await StorageService.save(StorageKey.OnboardingComplete, true);
+              return router.replace("/signin");
+            }}
+          >
             Get Started
           </AppButton>
         </View>

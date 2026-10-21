@@ -1,9 +1,9 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { View, type ViewProps } from "react-native";
+import { KeyboardAvoidingView, KeyboardAvoidingViewProps, View, type ViewProps } from "react-native";
 
 import { cn } from "@utils/ui";
 
-const appViewVariants = cva("bg-background h-screen px-7", {
+const appViewVariants = cva("bg-background flex-1 px-7", {
   variants: {
     withSafeArea: {
       true: "pt-safe pb-safe",
@@ -15,7 +15,7 @@ const appViewVariants = cva("bg-background h-screen px-7", {
   },
 });
 
-type AppViewProps = ViewProps &
+type AppViewProps = KeyboardAvoidingViewProps &
   VariantProps<typeof appViewVariants> & {
     children: React.ReactNode;
   };
@@ -27,14 +27,14 @@ export function AppView({
   ...props
 }: AppViewProps) {
   return (
-    <View
-      {...props}
-      className={cn(
-        appViewVariants({ withSafeArea }),
-        className,
-      )}
-    >
-      {children}
-    </View>
+    <KeyboardAvoidingView
+        {...props}
+        className={cn(
+          appViewVariants({ withSafeArea }),
+          className,
+        )}
+      >
+        {children}
+    </KeyboardAvoidingView>
   );
 }

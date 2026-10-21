@@ -52,7 +52,10 @@ export const AppColor = {
 
   white: "#FFFFFF",
   white90: "#FFFFFFE5",
-  whiteOther: '#F1F7FA',
+  whiteOther: "#F1F7FA",
+  bgSecondary: "#F1F7FA",
+
+  overlay: "rgba(0, 0, 0, 0.50)",
 
   success: "#57B77D",
   warning: "#E8A13A",
