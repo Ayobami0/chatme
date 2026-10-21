@@ -27,7 +27,8 @@ import {
   formatMessageDateSeparator,
 } from "@shared/utils/datetime";
 import { useConversationDetails } from "../query";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
+import { setActiveConversation } from "@features/notifications/active-conversation";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -101,6 +102,13 @@ export default function ChatScreen(props: ChatScreenProps) {
     directParticipantId,
   });
   const receipts = useReadReceipts(conversationId, sync.messages, user?.id);
+
+  const isFocused = useIsFocused();
+  useEffect(() => {
+    if (!isFocused) return;
+    setActiveConversation(conversationId);
+    return () => setActiveConversation(null);
+  }, [isFocused, conversationId]);
 
   // The failed state is otherwise only an icon, so tell screen-reader users when a send fails.
   const failedCount = sender.localMessages.filter((m) => m.localStatus === "failed").length;

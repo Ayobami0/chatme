@@ -115,8 +115,8 @@ describe("session routing", () => {
   it("logging out lands on sign-in and Back cannot return to the app", async () => {
     mockAuth = { ...mockAuth, ...signedIn };
     renderRouter(routes, { initialUrl: "/chats" });
-    act(() => router.push("/chat/abc123"));
-    expect(await screen.findByText("chat abc123")).toBeTruthy();
+    act(() => router.push("/chat/0b8f6c2e-7c1a-4c55-9a0e-2f8d1c3b4a5e"));
+    expect(await screen.findByText("chat 0b8f6c2e-7c1a-4c55-9a0e-2f8d1c3b4a5e")).toBeTruthy();
 
     await setAuth({ authStatus: "unauthenticated" });
 
@@ -126,8 +126,8 @@ describe("session routing", () => {
 
   it("opens a chat from its conversation id alone", async () => {
     mockAuth = { ...mockAuth, ...signedIn };
-    renderRouter(routes, { initialUrl: "/chat/conv_42" });
-    expect(await screen.findByText("chat conv_42")).toBeTruthy();
+    renderRouter(routes, { initialUrl: "/chat/7d444840-9dc0-41d1-b245-5ffdce74fad2" });
+    expect(await screen.findByText("chat 7d444840-9dc0-41d1-b245-5ffdce74fad2")).toBeTruthy();
   });
 
   it("fails safely on a malformed chat link", async () => {

@@ -21,6 +21,7 @@ import { endSession } from "@shared/session/end-session";
 import { isCredentialRejection } from "@core/network/errors";
 import { withTimeout } from "@shared/utils/async";
 import { log } from "@logging";
+import { unregisterFromPushNotifications } from "@features/notifications/push-registration";
 
 const LOGOUT_REVOKE_TIMEOUT_MS = 5_000;
 const OFFLINE_RETRY_INTERVAL_MS = 30_000;
@@ -189,6 +190,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [shouldRetry, revalidateProfile]);
 
   const logout = async () => {
+    // Unregister while the session can still authenticate the request.
+    await withTimeout(unregisterFromPushNotifications(), LOGOUT_REVOKE_TIMEOUT_MS).catch(
+      (error) => log.warn("Push unregister failed", error?.message),
+    );
+
     const refreshToken = TokenManager.getRefreshToken();
     if (refreshToken) {
       // Best effort: revoke server-side, but never block logout on the network.

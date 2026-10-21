@@ -3,8 +3,8 @@ import { queryKeys } from "@core/query/keys";
 import { ConversationModel } from "@shared/types/models";
 import { router } from "expo-router";
 
-/** Conversation ids are opaque server ids; reject anything that can't be one. */
-const CONVERSATION_ID = /^[A-Za-z0-9_-]{1,64}$/;
+/** Conversation ids are UUIDs (per the API spec); reject anything else. */
+const CONVERSATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseConversationId(value: unknown): string | undefined {
   const id = Array.isArray(value) ? value[0] : value;

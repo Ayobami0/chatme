@@ -23,6 +23,10 @@ jest.mock("@services/storage", () => {
   };
 });
 jest.mock("@shared/session/end-session", () => ({ endSession: jest.fn(async () => undefined) }));
+const mockCalls: string[] = [];
+jest.mock("@features/notifications/push-registration", () => ({
+  unregisterFromPushNotifications: jest.fn(async () => void mockCalls.push("unregister-push")),
+}));
 
 import { act, renderHook } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -108,5 +112,20 @@ describe("session startup", () => {
     expect(auth.current.authStatus).toBe("authenticated");
     expect(auth.current.offline).toBe(false);
     expect(values.cachedUser).toEqual(user);
+  });
+});
+
+describe("logout", () => {
+  it("unregisters push before revoking the login, then ends the session", async () => {
+    mockCalls.length = 0;
+    getProfile.mockResolvedValue(user);
+    (AuthService.logout as jest.Mock).mockImplementation(async () => void mockCalls.push("revoke"));
+    (TokenManager.clearTokens as jest.Mock).mockImplementation(async () => void mockCalls.push("clear-tokens"));
+
+    const auth = await startApp();
+    await act(() => auth.current.logout());
+
+    expect(mockCalls).toEqual(["unregister-push", "revoke", "clear-tokens"]);
+    expect(auth.current.authStatus).toBe("unauthenticated");
   });
 });

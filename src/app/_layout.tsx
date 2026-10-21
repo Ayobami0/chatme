@@ -1,5 +1,9 @@
 import { SplashScreen } from "expo-router";
 import { SessionStack } from "@shared/navigation/session-stack";
+import {
+  configureNotificationHandler,
+  useNotificationRouting,
+} from "@features/notifications/hooks";
 import "@shared/global.css";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
@@ -20,6 +24,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 SplashScreen.preventAutoHideAsync();
+configureNotificationHandler();
 
 export default function RootLayout() {
   return (
@@ -37,6 +42,7 @@ function RootContent() {
   const { initialize, initialized, user, startupFailed } = auth;
   const stage = getSessionStage(auth);
   const isRestoring = usePersistedQueryCache(client, user?.id);
+  useNotificationRouting(initialized && stage === "app" && !isRestoring && !startupFailed);
 
   useEffect(() => {
     initialize();
