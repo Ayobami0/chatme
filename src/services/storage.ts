@@ -6,6 +6,7 @@ export enum StorageKey {
   OnboardingComplete = "onboardingComplete",
   ProfileFlowStage = "profileFlowStage",
   HasSeenPinPrompt = "hasSeenPinPrompt",
+  CachedUser = "cachedUser",
 }
 
 export class StorageService {

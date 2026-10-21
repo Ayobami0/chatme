@@ -3,11 +3,12 @@ import { AnyFieldApi } from "@tanstack/react-form";
 import { OtpInput } from "react-native-otp-entry";
 
 type AppPinInputProps = {
-  field?: AnyFieldApi
+  field?: AnyFieldApi;
+  length?: number;
 };
 
 export function AppPinInput(props: AppPinInputProps) {
-  const { field } = props;
+  const { field, length = 4 } = props;
 
   const borderColor = useThemeColor("border");
   const focusColor = useThemeColor("focus");
@@ -16,7 +17,7 @@ export function AppPinInput(props: AppPinInputProps) {
 
   return (
     <OtpInput
-      numberOfDigits={4}
+      numberOfDigits={length}
       type="numeric"
       theme={{
         containerStyle: {

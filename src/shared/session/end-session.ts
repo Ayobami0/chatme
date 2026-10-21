@@ -18,5 +18,6 @@ export async function endSession(queryClient: QueryClient, userId?: string) {
   await Promise.allSettled([
     removePersistedQueryCache(userId),
     StorageService.remove(StorageKey.ProfileFlowStage),
+    StorageService.remove(StorageKey.CachedUser),
   ]);
 }

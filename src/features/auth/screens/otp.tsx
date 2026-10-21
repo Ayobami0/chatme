@@ -6,27 +6,38 @@ import {
   AppView,
   toast,
 } from "@components";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { otpSchema } from "../data/schema";
-import z from "zod";
+import { createOtpSchema, DEFAULT_OTP_LENGTH } from "../data/schema";
 import { useForm } from "@tanstack/react-form";
 import { useAuthFlowStore } from "../store";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useVerifyOtp } from "../query";
 import { getDeviceInfo } from "@shared/utils/device";
 import { useAuth } from "@shared/context/auth-context";
+import { PhoneVerificationResponse } from "@shared/types/api";
 
 export default function OtpScreen() {
-  const { data, stage, setStage } = useAuthFlowStore();
+  const { data } = useAuthFlowStore();
+
+  // Opened without an active challenge (deep link, reload, back navigation after login).
+  if (!data) return <Redirect href="/signin" />;
+
+  return <OtpForm challenge={data} />;
+}
+
+function OtpForm({ challenge }: { challenge: PhoneVerificationResponse }) {
+  const { stage, setStage } = useAuthFlowStore();
   const { setAuthState } = useAuth();
-  const [otpData, setOtpData] = useState(data!);
+  const [otpData, setOtpData] = useState(challenge);
+  const codeLength = otpData.codeLength || DEFAULT_OTP_LENGTH;
+  const otpSchema = useMemo(() => createOtpSchema(codeLength), [codeLength]);
 
   const { verifyMutation, resendMutation } = useVerifyOtp();
   const { mutate: verifyOtp, isPending } = verifyMutation;
   const { mutate: resendOtp, isPending: isPendingResend } = resendMutation;
 
-  const submit = async (value: z.infer<typeof otpSchema>) => {
+  const submit = async (value: { otp: string }) => {
     const deviceInfo = await getDeviceInfo();
     verifyOtp(
       {
@@ -36,17 +47,27 @@ export default function OtpScreen() {
       },
       {
         onSuccess: async (data) => {
-          setAuthState({
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            user: data.user,
-          });
-          if (data.user.profileComplete) {
-            router.push('/chats')
-          } else {
-            router.push("/profile-name");
+          try {
+            await setAuthState({
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken,
+              user: data.user,
+            });
+          } catch {
+            toast.show({
+              type: "error",
+              text1: "Error",
+              text2: "Unable to save your sign-in on this device. Please try again.",
+            });
+            return;
           }
-          setStage("name");
+
+          if (data.user.profileComplete) {
+            router.replace("/chats");
+          } else {
+            setStage("name");
+            router.replace("/profile-name");
+          }
         },
         onError: () => {
           toast.show({ type: "error", text1: "Error", text2: "Invalid OTP" });
@@ -55,19 +76,7 @@ export default function OtpScreen() {
     );
   };
 
-  const resend = () =>
-    resendOtp(
-      { challengeId: otpData.challengeId },
-      {
-        onSuccess: (data) => {
-          setOtpData(data);
-          setCountdown(data.resendInSeconds);
-        },
-      },
-    );
-
-
-  const [countdown, setCountdown] = React.useState(
+  const [countdown, setCountdown] = useState(
     stage === "otp" ? otpData.resendInSeconds : 0,
   );
 
@@ -76,7 +85,29 @@ export default function OtpScreen() {
       setCountdown((prev) => Math.max(prev - 1, 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [countdown]);
+  }, []);
+
+  const resend = () => {
+    if (isPendingResend || countdown > 0) return;
+
+    resendOtp(
+      { challengeId: otpData.challengeId },
+      {
+        onSuccess: (data) => {
+          setOtpData(data);
+          setStage("otp", { data });
+          setCountdown(data.resendInSeconds);
+        },
+        onError: () => {
+          toast.show({
+            type: "error",
+            text1: "Error",
+            text2: "Unable to resend the code. Please try again.",
+          });
+        },
+      },
+    );
+  };
 
   const { Field, handleSubmit, Subscribe } = useForm({
     onSubmit: ({ value }) => submit(value),
@@ -89,7 +120,7 @@ export default function OtpScreen() {
       <AppHeader onBack={router.back} />
       <View className="flex flex-col flex-1 items-start pt-6">
         <AppText variant="h3" className="pb-3">
-          What's your phone number?
+          Enter verification code
         </AppText>
         <AppText color="subtext" variant="body-md-regular" className="pb-8">
           Enter the code number we sent to{" "}
@@ -100,15 +131,21 @@ export default function OtpScreen() {
           }
           .
         </AppText>
-        <Field name="otp" children={(field) => <AppPinInput field={field} />} />
+        <Field
+          name="otp"
+          children={(field) => <AppPinInput field={field} length={codeLength} />}
+        />
         <View className="self-center flex-row items-center pt-8">
           <AppText color="subtext" variant="body-md-regular">
-            If you don't get the code
+            If you don&apos;t get the code
           </AppText>
           {countdown === 0 ? (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => resend()}
+              onPress={resend}
+              disabled={isPendingResend}
+              accessibilityRole="button"
+              accessibilityState={{ busy: isPendingResend, disabled: isPendingResend }}
             >
               <AppText
                 color={isPendingResend ? "subtext" : "primary"}
@@ -130,7 +167,7 @@ export default function OtpScreen() {
               <AppButton
                 className="w-full"
                 isLoading={isPending}
-                disabled={!canSubmit || values.otp.length !== 4 || isPending}
+                disabled={!canSubmit || values.otp.length !== codeLength || isPending}
                 onPress={handleSubmit}
               >
                 Next

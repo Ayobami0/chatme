@@ -73,7 +73,7 @@ apiClient.interceptors.response.use(
     if (originalRequest._retry) {
       log.warn("Request failed with 401 after token refresh");
 
-      TokenManager.clearTokens();
+      await TokenManager.clearTokens().catch(() => undefined);
       return Promise.reject(error);
     }
 

@@ -15,16 +15,19 @@ import { useUpdateProfile } from "../query";
 import { SolidUserSvg } from "@shared/components/svgs/icons";
 import { router } from "expo-router";
 import StorageService, { StorageKey } from "@services/storage";
+import { useAuth } from "@shared/context/auth-context";
 
 export default function ProfileNameScreen() {
   const { setStage } = useAuthFlowStore();
   const { mutate, isPending } = useUpdateProfile();
+  const { setUser } = useAuth();
 
   const submit = async (value: z.infer<typeof fullNameSchema>) => {
     mutate(
       { displayName: value.fullName },
       {
-        onSuccess: async () => {
+        onSuccess: async (user) => {
+          setUser(user);
           await StorageService.save(StorageKey.ProfileFlowStage, "image");
           router.push("/profile-image");
           setStage("image");
