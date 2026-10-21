@@ -24,5 +24,5 @@ A service method existing doesn't make a feature complete. Each row tracks the f
 | Group description | ❌ | ❌ | ❌ | ❌ | Not in create/update DTOs; field hidden |
 | Avatar upload (profile) | ✅ | ✅ | ✅ | ✅ | Upload → `PUT /me/avatar` → session user; retry keeps upload id |
 | Group avatar (create / edit) | ✅ | ✅ | ✅ | 🟡 | Optional on create; errors shown as toast |
-| PIN lock | ❌ | ❌ | 🟡 | ❌ | Phase 7: hide until implemented |
+| PIN lock | ❌ | ❌ | ❌ | ❌ | Prompt and route removed until secure storage and an app lock exist |
 | Push notifications | ✅ | ❌ | ❌ | ❌ | Phase 8 |

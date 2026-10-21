@@ -9,3 +9,7 @@ export function isCredentialRejection(error: unknown): boolean {
   const status = error.response?.status;
   return status === 401 || status === 403;
 }
+
+export function isNotFound(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404;
+}

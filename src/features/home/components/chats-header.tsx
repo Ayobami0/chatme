@@ -48,25 +48,25 @@ export function ChatsHeader(props: ChatsHeaderProps) {
       {selectedCount > 0 ? (
         <View className="flex-row items-center justify-between pt-[21]">
           <View className="flex-row items-center gap-4">
-            <Pressable onPress={onClearSelection} className="p-1">
+            <Pressable onPress={onClearSelection} className="p-1" accessibilityRole="button" accessibilityLabel="Clear selection">
               <SolidXSvg width={20} height={20} color={onPrimaryColor} />
             </Pressable>
-            <AppText variant="h4" color="onPrimary">
+            <AppText variant="h4" color="onPrimary" accessibilityLiveRegion="polite">
               {selectedCount} selected
             </AppText>
           </View>
 
           <View className="flex-row items-center gap-3">
-            <Pressable onPress={onPin} className="p-1">
+            <Pressable onPress={onPin} className="p-1" accessibilityRole="button" accessibilityLabel={isAllPinned ? "Unpin selected chats" : "Pin selected chats"}>
               <PinIcon width={22} height={22} color={onPrimaryColor} />
             </Pressable>
-            <Pressable onPress={onArchive} className="p-1">
+            <Pressable onPress={onArchive} className="p-1" accessibilityRole="button" accessibilityLabel={isAllArchived ? "Unarchive selected chats" : "Archive selected chats"}>
               <ArchiveIcon width={22} height={22} color={onPrimaryColor} />
             </Pressable>
-            <Pressable onPress={onMute} className="p-1">
+            <Pressable onPress={onMute} className="p-1" accessibilityRole="button" accessibilityLabel={isAllMuted ? "Unmute selected chats" : "Mute selected chats"}>
               <MuteIcon width={22} height={22} color={onPrimaryColor} />
             </Pressable>
-            <Pressable onPress={onDelete} className="p-1">
+            <Pressable onPress={onDelete} className="p-1" accessibilityRole="button" accessibilityLabel="Remove selected chats">
               <SolidTrashSvg width={22} height={22} color={onPrimaryColor} />
             </Pressable>
           </View>

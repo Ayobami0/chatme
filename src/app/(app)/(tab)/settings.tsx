@@ -1,7 +1,5 @@
-import { View } from "react-native";
+import { SettingsScreen } from "@features/settings/screens";
 
 export default function Index() {
-  return (
-    <View></View>
-  );
+  return <SettingsScreen />;
 }

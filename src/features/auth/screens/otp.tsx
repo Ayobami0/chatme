@@ -62,12 +62,9 @@ function OtpForm({ challenge }: { challenge: PhoneVerificationResponse }) {
             return;
           }
 
-          if (data.user.profileComplete) {
-            router.replace("/chats");
-          } else {
-            setStage("name");
-            router.replace("/profile-name");
-          }
+          // No navigation here: the session stage changed, so the root route guards
+          // drop the auth screens from history and route to profile setup or chats.
+          if (!data.user.profileComplete) setStage("name");
         },
         onError: () => {
           toast.show({ type: "error", text1: "Error", text2: "Invalid OTP" });

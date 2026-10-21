@@ -100,7 +100,12 @@ export default function ArchivedChatsScreen() {
   return (
     <AppView className="p-0">
       <View className="pt-[60] px-6 bg-primary pb-4 flex-row items-center gap-4">
-        <Pressable onPress={() => router.back()} className="p-1">
+        <Pressable
+          onPress={() => router.back()}
+          className="p-1"
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <OutlineCheveronLeftSvg width={24} height={24} color={onPrimaryColor} />
         </Pressable>
         <AppText variant="h3" color="onPrimary">

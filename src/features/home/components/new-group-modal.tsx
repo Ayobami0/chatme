@@ -123,6 +123,8 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
               <Pressable
                 onPress={() => setStep(1)}
                 className="absolute left-0 p-1"
+                accessibilityRole="button"
+                accessibilityLabel="Back to participants"
               >
                 <OutlineCheveronLeftSvg
                   width={24}
@@ -320,6 +322,9 @@ function GroupCreationProgress1({
                   activeOpacity={0.8}
                   onPress={() => onToggleSelectUser(item)}
                   className="items-center w-[72px]"
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={item.displayName}
+                  accessibilityState={{ checked: isSelected }}
                 >
                   <View>
                     <View

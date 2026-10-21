@@ -32,14 +32,16 @@ const mockUpload = jest.fn();
 jest.mock("@shared/hooks/use-upload", () => ({ useUpload: () => ({ upload: mockUpload }) }));
 jest.mock("@services/auth", () => ({ AuthService: { setProfileAvatar: jest.fn() } }));
 const mockSetUser = jest.fn();
-jest.mock("@shared/context/auth-context", () => ({ useAuth: () => ({ setUser: mockSetUser }) }));
+const mockCompleteProfileSetup = jest.fn();
+jest.mock("@shared/context/auth-context", () => ({
+  useAuth: () => ({ setUser: mockSetUser, completeProfileSetup: mockCompleteProfileSetup }),
+}));
 jest.mock("expo-router", () => ({
   router: { canGoBack: () => false, back: jest.fn(), dismissTo: jest.fn() },
 }));
 
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
-import { router } from "expo-router";
 import { AuthService } from "@services/auth";
 import ProfileImageScreen from "../image";
 
@@ -89,7 +91,7 @@ describe("ProfileImageScreen", () => {
 
     expect(setProfileAvatar).toHaveBeenCalledWith({ mediaId: "media-1" });
     expect(mockSetUser).toHaveBeenCalledWith(user);
-    expect(router.dismissTo).toHaveBeenCalledWith("/chats");
+    expect(mockCompleteProfileSetup).toHaveBeenCalled();
   });
 
   it("does not offer Next when assigning the avatar fails", async () => {

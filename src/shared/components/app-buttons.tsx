@@ -67,6 +67,9 @@ export function AppButton({
   return (
     <TouchableOpacity
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={typeof children === "string" ? children : undefined}
+      accessibilityState={{ disabled: Boolean(disabled || isLoading), busy: Boolean(isLoading) }}
       {...props}
       disabled={disabled || isLoading}
       className={cn(

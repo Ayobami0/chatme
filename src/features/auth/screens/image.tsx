@@ -27,7 +27,7 @@ type AvatarState =
 export default function ProfileImageScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [state, setState] = useState<AvatarState>({ status: "idle" });
-  const { setUser } = useAuth();
+  const { setUser, completeProfileSetup } = useAuth();
   const { upload } = useUpload("profile_avatar");
 
   const attach = async (image: PickedImage, clientUploadId: string) => {
@@ -100,7 +100,8 @@ export default function ProfileImageScreen() {
               variant={state.status === "failed" ? "secondary" : undefined}
               onPress={() =>
                 state.status === "attached"
-                  ? router.dismissTo("/chats")
+                  ? // The guard switches to the app stage and routes to /chats.
+                    void completeProfileSetup()
                   : setIsModalVisible(true)
               }
             >

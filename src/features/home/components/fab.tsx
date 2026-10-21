@@ -35,6 +35,8 @@ export function FloatingActionButton({
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="New chat or group"
         className="flex-1 items-center justify-center"
       >
         <SolidPlusSvg color={iconColor} />

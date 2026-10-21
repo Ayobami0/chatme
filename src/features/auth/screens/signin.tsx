@@ -25,7 +25,7 @@ export default function SignInScreen() {
       {
         onSuccess: async (data) => {
           setStage("otp", { data });
-          router.push("/opt");
+          router.push("/otp");
         },
         onError: () => {
           toast.show({

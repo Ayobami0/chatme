@@ -1,4 +1,5 @@
-import { SplashScreen, Stack } from "expo-router";
+import { SplashScreen } from "expo-router";
+import { SessionStack } from "@shared/navigation/session-stack";
 import "@shared/global.css";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
@@ -10,7 +11,11 @@ import { client } from "@core/query";
 import { usePersistedQueryCache } from "@core/query/persistence";
 import { AppButton, AppText, AppToast } from "@components";
 import { useEffect } from "react";
-import { AuthProvider, useAuth } from "@shared/context/auth-context";
+import {
+  AuthProvider,
+  getSessionStage,
+  useAuth,
+} from "@shared/context/auth-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
@@ -28,7 +33,9 @@ export default function RootLayout() {
 
 function RootContent() {
   const { colorScheme } = useColorScheme();
-  const { initialize, initialized, user, startupFailed } = useAuth();
+  const auth = useAuth();
+  const { initialize, initialized, user, startupFailed } = auth;
+  const stage = getSessionStage(auth);
   const isRestoring = usePersistedQueryCache(client, user?.id);
 
   useEffect(() => {
@@ -55,7 +62,7 @@ function RootContent() {
               {startupFailed ? (
                 <StartupError onRetry={initialize} />
               ) : (
-                <Stack screenOptions={{ headerShown: false }} />
+                <SessionStack stage={stage} />
               )}
             </View>
             <AppToast />

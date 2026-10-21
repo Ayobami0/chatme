@@ -109,6 +109,18 @@ export function ConversationCard(props: ConversationCardProps) {
 
   const navigateToChat = () => openConversation(conversation);
 
+  const latest = conversation.latestMessage;
+  const accessibilityLabel = [
+    isGroup ? `Group ${displayName}` : displayName,
+    conversation.unreadCount > 0 ? `${conversation.unreadCount} unread` : undefined,
+    latest ? `${latest.senderId === user?.id ? "You: " : ""}${latest.preview}` : undefined,
+    latest?.createdAt ? formatDateTime(latest.createdAt) : undefined,
+    isPinned ? "Pinned" : undefined,
+    isMuted ? "Muted" : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <ReanimatedSwipeable
       friction={2}
@@ -175,6 +187,25 @@ export function ConversationCard(props: ConversationCardProps) {
         }}
         style={{ backgroundColor: isSelected ? mutedColor : bg }}
         className={`flex-row items-center gap-4 px-3 h-20 transition-colors rounded-xl`}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={onPress ? "Toggles selection" : "Opens the chat"}
+        accessibilityState={{ selected: isSelected }}
+        // Swipe actions aren't reachable by screen readers, so expose them as actions too.
+        accessibilityActions={[
+          { name: "mute", label: isMuted ? "Unmute" : "Mute" },
+          { name: "pin", label: isPinned ? "Unpin" : "Pin" },
+          { name: "archive", label: isArchived ? "Unarchive" : "Archive" },
+          { name: "remove", label: SWIPE_REMOVAL_LABEL[getRemovalAction(conversation)] },
+          { name: "longpress", label: "Select" },
+        ]}
+        onAccessibilityAction={({ nativeEvent }) => {
+          if (nativeEvent.actionName === "mute") onMute();
+          else if (nativeEvent.actionName === "pin") onPin();
+          else if (nativeEvent.actionName === "archive") onArchive();
+          else if (nativeEvent.actionName === "remove") onDelete();
+          else if (nativeEvent.actionName === "longpress") onLongPress?.();
+        }}
       >
         <AppAvatar url={avatarUrl} name={displayName} isOnline={isOnline} />
 
@@ -256,6 +287,8 @@ function SwipeAction({ color, onPress, icon, label }: SwipeActionProps) {
         backgroundColor: color,
       }}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Icon width={20} height={20} color={AppColor.white} />
 

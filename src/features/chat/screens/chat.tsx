@@ -29,6 +29,7 @@ import {
 import { useConversationDetails } from "../query";
 import { router } from "expo-router";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   FlatList,
@@ -45,7 +46,7 @@ import {
   TypingChatBubble,
 } from "../components/chat-bubble";
 import { useAuth } from "@shared/context/auth-context";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppColor } from "@shared/theme/color";
 import { useColorScheme } from "nativewind";
 import { Image } from "expo-image";
@@ -60,38 +61,36 @@ import { usePresenceAndTyping } from "../hooks/use-presence-and-typing";
 import { ParticipantReceipt, useReadReceipts } from "../hooks/use-read-receipts";
 import { OutboxAttachment } from "../store/outbox";
 import { useDraftsStore } from "../store/drafts";
+import { ConversationNotFound } from "../components/conversation-not-found";
+import { isCredentialRejection, isNotFound } from "@core/network/errors";
 
 type ChatScreenProps = {
   conversationId: string;
-  participantId: string;
-  profileUrl?: string;
-  fullName?: string;
-  activeAt?: Date;
-  isGroup: boolean;
 };
 
 /** Assembles the chat from focused hooks: sync, sending, presence/typing and receipts. */
 export default function ChatScreen(props: ChatScreenProps) {
-  const { conversationId, activeAt } = props;
+  const { conversationId } = props;
   const { user } = useAuth();
   const { colorScheme } = useColorScheme();
   const bgSvgColor = useThemeColor("muted");
 
-  const { data: conversation } = useConversationDetails(conversationId);
+  // Everything about the conversation comes from the server, never from route params.
+  const { data: conversation, error: detailsError } =
+    useConversationDetails(conversationId);
   const isDirect = conversation?.type === "direct";
-  const directParticipantId = isDirect
-    ? conversation.otherParticipant.id
-    : props.participantId || undefined;
+  const directParticipantId = isDirect ? conversation.otherParticipant.id : undefined;
   const title =
     (conversation?.type === "direct"
       ? conversation.otherParticipant.displayName
-      : conversation?.name) ??
-    props.fullName ??
-    "";
+      : conversation?.name) ?? "";
   const avatarUrl =
-    (conversation?.type === "direct"
+    conversation?.type === "direct"
       ? conversation.otherParticipant.avatarUrl
-      : conversation?.avatarUrl) ?? props.profileUrl;
+      : conversation?.avatarUrl;
+  const lastActiveAt = conversation?.lastActivityAt
+    ? new Date(conversation.lastActivityAt)
+    : undefined;
 
   const sync = useConversationSync(conversationId);
   const sender = useMessageSender(conversationId, sync.messages, {
@@ -103,8 +102,22 @@ export default function ChatScreen(props: ChatScreenProps) {
   });
   const receipts = useReadReceipts(conversationId, sync.messages, user?.id);
 
+  // The failed state is otherwise only an icon, so tell screen-reader users when a send fails.
+  const failedCount = sender.localMessages.filter((m) => m.localStatus === "failed").length;
+  const previousFailedCount = useRef(failedCount);
+  useEffect(() => {
+    if (failedCount > previousFailedCount.current) {
+      AccessibilityInfo.announceForAccessibility("Message not sent. Double tap it for options.");
+    }
+    previousFailedCount.current = failedCount;
+  }, [failedCount]);
+
   const chatBg =
     colorScheme === "dark" ? AppColor.neutral700 : AppColor.primary50;
+
+  if (isCredentialRejection(detailsError) || isNotFound(detailsError)) {
+    return <ConversationNotFound />;
+  }
 
   const onFailedPress = (message: LocalMessage) =>
     Alert.alert("Message not sent", undefined, [
@@ -134,7 +147,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         url={avatarUrl ?? undefined}
         online={presence.isOnline}
         conversation={conversation ?? undefined}
-        date={activeAt}
+        date={lastActiveAt}
       />
       {sync.isFetching && <AppLinearProgressIndicator />}
       <ChatBody
