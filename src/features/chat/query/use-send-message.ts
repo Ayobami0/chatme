@@ -1,5 +1,7 @@
+import { queryKeys } from "@core/query/keys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
+import { applyMessages } from "./message-cache";
 
 export function useSendMessage(conversationId?: string) {
   const queryClient = useQueryClient();
@@ -21,13 +23,10 @@ export function useSendMessage(conversationId?: string) {
         attachmentMediaIds
       });
     },
-    onSuccess: () => {
-      if (conversationId) {
-        void queryClient.invalidateQueries({
-          queryKey: ["conversationMessages", conversationId],
-        });
-        void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      }
+    onSuccess: (message) => {
+      if (!conversationId) return;
+      applyMessages(queryClient, conversationId, [message]);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });
 }

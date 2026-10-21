@@ -1,10 +1,18 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppSessionState, StoredAuthTokens } from "@shared/types/authState";
 import { UserModel } from "@shared/types/models";
 import { TokenManager } from "@services/token-manager";
 import { AuthService } from "@services/auth";
 import StorageService, { StorageKey } from "@services/storage";
-import { useCacheStore } from "@shared/store/cache";
+import { endSession } from "@shared/session/end-session";
 
 interface AuthContextType extends AppSessionState {
   initialize: () => Promise<void>;
@@ -29,27 +37,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: undefined,
   });
 
+  const queryClient = useQueryClient();
+  const userIdRef = useRef<string | undefined>(undefined);
+  userIdRef.current = sessionState.user?.id;
+  const endingSession = useRef<Promise<void> | null>(null);
+
+  // The one path for ending a session, whether from logout or from rejected credentials.
+  // Concurrent callers share the same run.
+  const endLocalSession = useCallback(() => {
+    endingSession.current ??= (async () => {
+      try {
+        await endSession(queryClient, userIdRef.current);
+      } finally {
+        setSessionState((prev) => ({
+          ...prev,
+          authStatus: "unauthenticated",
+          user: undefined,
+          profileStatus: "incomplete",
+        }));
+        endingSession.current = null;
+      }
+    })();
+    return endingSession.current;
+  }, [queryClient]);
+
   useEffect(() => {
-    TokenManager.setOnUnauthenticatedListener(() => {
-      void useCacheStore.getState().clearCache();
-      setSessionState((prev) => ({
-        ...prev,
-        authStatus: "unauthenticated",
-        user: undefined,
-      }));
-    });
+    TokenManager.setOnUnauthenticatedListener(() => void endLocalSession());
     return () => TokenManager.setOnUnauthenticatedListener(null);
-  }, []);
+  }, [endLocalSession]);
 
   const logout = async () => {
     TokenManager.clearTokens();
-    await useCacheStore.getState().clearCache();
-    setSessionState((prev) => ({
-      ...prev,
-      authStatus: "unauthenticated",
-      user: undefined,
-      profileStatus: "incomplete",
-    }));
+    await endLocalSession();
   };
 
   const refreshTokens = async () => {

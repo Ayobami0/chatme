@@ -2,11 +2,12 @@ import { SplashScreen, Stack } from "expo-router";
 import "@shared/global.css";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { IsRestoringProvider, QueryClientProvider } from "@tanstack/react-query";
 
 import { colorschemes } from "@shared/theme/colorschemes";
 import { View } from "react-native";
 import { client } from "@core/query";
+import { usePersistedQueryCache } from "@core/query/persistence";
 import { AppToast } from "@components";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@shared/context/auth-context";
@@ -17,15 +18,18 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootContent />
-    </AuthProvider>
+    <QueryClientProvider client={client}>
+      <AuthProvider>
+        <RootContent />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
 function RootContent() {
   const { colorScheme } = useColorScheme();
-  const { initialize, initialized } = useAuth();
+  const { initialize, initialized, user } = useAuth();
+  const isRestoring = usePersistedQueryCache(client, user?.id);
 
   useEffect(() => {
     initialize();
@@ -43,7 +47,7 @@ function RootContent() {
   }
 
   return (
-    <QueryClientProvider client={client}>
+    <IsRestoringProvider value={isRestoring}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <BottomSheetModalProvider>
@@ -54,6 +58,6 @@ function RootContent() {
           </BottomSheetModalProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
-    </QueryClientProvider>
+    </IsRestoringProvider>
   );
 }

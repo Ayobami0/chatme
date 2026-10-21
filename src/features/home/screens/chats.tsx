@@ -1,3 +1,4 @@
+import { queryKeys } from "@core/query/keys";
 import { AppText, AppView, useRealtime } from "@components";
 import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
 import { ChatsHeader } from "../components/chats-header";
@@ -15,7 +16,6 @@ import {
   useConversationRemoval,
 } from "../query";
 import { confirmConversationRemoval } from "../components/confirm-conversation-removal";
-import { useCacheStore } from "@shared/store/cache";
 import { router } from "expo-router";
 import Toast from "react-native-toast-message";
 import {
@@ -25,6 +25,9 @@ import {
 } from "@shared/components/svgs/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import StorageService, { StorageKey } from "@services/storage";
+import { ConversationModel } from "@shared/types/models";
+
+const NO_CONVERSATIONS: ConversationModel[] = [];
 
 export default function ChatsScreen() {
   const queryClient = useQueryClient();
@@ -54,10 +57,6 @@ export default function ChatsScreen() {
 
   const { socket, status, activityVersion, reconcileVersion } = useRealtime();
 
-  const hydrateCache = useCacheStore((s) => s.hydrate);
-  const cachedConversations = useCacheStore((s) => s.conversations);
-  const setConversations = useCacheStore((s) => s.setConversations);
-
   useEffect(() => {
     void (async () => {
       const hasSeenPinPrompt = await StorageService.get<boolean>(
@@ -67,21 +66,13 @@ export default function ChatsScreen() {
         setPinModalVisible(true);
       }
     })();
-    void hydrateCache();
-  }, [hydrateCache]);
-
-  // Only a successful response is authoritative; loading/failed states keep the cached list.
-  useEffect(() => {
-    if (conversationsQuery.isSuccess) {
-      setConversations(conversationsQuery.data);
-    }
-  }, [conversationsQuery.isSuccess, conversationsQuery.data, setConversations]);
+  }, []);
 
   useEffect(() => {
     if (!socket || status !== "connected") return;
 
     const onMessageCreated = () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     };
 
     socket.on("message.created", onMessageCreated);
@@ -92,10 +83,11 @@ export default function ChatsScreen() {
   }, [socket, status, queryClient]);
 
   useEffect(() => {
-    void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
   }, [activityVersion, reconcileVersion, queryClient]);
 
-  const conversations = data ?? cachedConversations;
+  // The query cache (restored from disk on launch) is the only source of conversations.
+  const conversations = data ?? NO_CONVERSATIONS;
 
   const archivedConversations = archivedConversationsResp ?? [];
 

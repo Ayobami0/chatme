@@ -1,6 +1,6 @@
+import { queryKeys } from "@core/query/keys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
-import { useCacheStore } from "@shared/store/cache";
 import { ConversationModel } from "@shared/types/models";
 import { getRemovalAction } from "../utils/conversation-removal";
 
@@ -21,7 +21,6 @@ const removeConversation = (conversation: ConversationModel) => {
  */
 export function useConversationRemoval() {
   const queryClient = useQueryClient();
-  const removeCachedConversation = useCacheStore((s) => s.removeConversation);
 
   return useMutation({
     mutationFn: removeConversation,
@@ -29,15 +28,14 @@ export function useConversationRemoval() {
       const without = (list?: ConversationModel[]) =>
         list?.filter((c) => c.id !== conversation.id);
 
-      queryClient.setQueryData(["conversations"], without);
-      queryClient.setQueryData(["archivedConversations"], without);
-      queryClient.removeQueries({ queryKey: ["conversation", conversation.id] });
-      queryClient.removeQueries({ queryKey: ["conversationMessages", conversation.id] });
-      removeCachedConversation(conversation.id);
+      queryClient.setQueryData(queryKeys.conversations, without);
+      queryClient.setQueryData(queryKeys.archivedConversations, without);
+      queryClient.removeQueries({ queryKey: queryKeys.conversation(conversation.id) });
+      queryClient.removeQueries({ queryKey: queryKeys.messages(conversation.id) });
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      void queryClient.invalidateQueries({ queryKey: ["archivedConversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.archivedConversations });
     },
   });
 }
