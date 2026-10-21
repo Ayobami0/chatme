@@ -5,24 +5,16 @@ import {
   AppTextField,
 } from "@components";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import { ConversationService } from "@services/conversation";
-import { DiscoveryService } from "@services/discovery";
 import {
   OutlineCheckSvg,
   OutlineCheveronLeftSvg,
   OutlineSearchSvg,
   SolidAddAPhotoSvg,
-  SolidCheckCircleSvg,
-  SolidUserGroupSvg,
-  SolidXSvg,
 } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { AppColor } from "@shared/theme/color";
 import { ConversationUser } from "@shared/types/models";
-import { formatPhoneNumber, validatePhoneNumber } from "@shared/utils/phone";
-import * as Contacts from "expo-contacts";
-import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -35,19 +27,14 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import Toast from "react-native-toast-message";
-import { useCreateGroup, useSearchUsers, useMatchContacts } from "../query";
+import { useCreateGroup, useSearchUsers } from "../query";
 import { useUpload } from "@shared/hooks";
+import { useDeviceContactMatches } from "../hooks/use-device-contact-matches";
+import { openConversation } from "@features/chat/navigation";
 
 type NewGroupModalProps = {
   isVisible: boolean;
   onClose: () => void;
-};
-
-type AppContact = {
-  id: string;
-  displayName: string;
-  phoneNumber?: string;
-  user?: ConversationUser;
 };
 
 export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
@@ -58,7 +45,6 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
     Array<{ id: string; displayName: string; avatarUrl?: string }>
   >([]);
   const [groupName, setGroupName] = useState("");
-  const [groupDescription, setGroupDescription] = useState("");
   const [image, setImage] = useState<string | undefined>();
 
   const createGroupMutation = useCreateGroup();
@@ -70,8 +56,7 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
     setSelectedUserIds([]);
     setSelectedUsers([]);
     setGroupName("");
-    setImage("");
-    setGroupDescription("");
+    setImage(undefined);
   };
   const { upload, isPending } = useUpload({ purpose: "group_avatar" });
 
@@ -98,17 +83,20 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
 
   const createGroup = async () => {
     try {
-      const res = await upload(image);
-      await createGroupMutation.mutateAsync({
+      // The avatar is optional; only upload when one was picked.
+      const avatar = image ? await upload(image) : undefined;
+      const conversation = await createGroupMutation.mutateAsync({
         name: groupName.trim(),
         participantIds: selectedUserIds,
-        avatarMediaId: res?.id,
+        avatarMediaId: avatar?.id,
       });
-      router.back();
+      handleClose();
+      openConversation(conversation);
     } catch (error) {
+      // Keep the form open with its input so the user can retry.
       Toast.show({
         type: "error",
-        text1: "Unable to creat group",
+        text1: "Unable to create group",
         text2: error instanceof Error ? error.message : String(error),
       });
     }
@@ -159,8 +147,6 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
               <GroupCreationProgress2
                 groupName={groupName}
                 setGroupName={setGroupName}
-                setGroupDescription={setGroupDescription}
-                groupDescription={groupDescription}
                 selectedUsers={selectedUsers}
                 image={image}
                 setImage={setImage}
@@ -225,11 +211,10 @@ function GroupCreationProgress1({
   }) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [contacts, setContacts] = useState<AppContact[]>([]);
-  const [fetching, setFetching] = useState(false);
+  const { contacts, status: contactsStatus, retry } = useDeviceContactMatches();
+  const fetching = contactsStatus === "loading";
 
   const primaryColor = useThemeColor("primary");
-  const subtextColor = useThemeColor("subtext");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -240,22 +225,6 @@ function GroupCreationProgress1({
     refetch,
   } = searchUsersQuery;
 
-  const matchContactsMutation = useMatchContacts();
-  const matchContactsMutate = (numbers: string[]) => {
-    matchContactsMutation.mutate(numbers, {
-      onSuccess: ({ matches }) => {
-        const hydratedContacts = contacts.map((c) => ({
-          ...c,
-          user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)
-            ?.user,
-        }));
-        setContacts(hydratedContacts);
-        setFetching(false);
-      },
-      onError: () => setFetching(false),
-    });
-  };
-
   const searchUsers = (query: string) => {
     if (query.trim().length < 3) return;
     if (debounceRef.current) {
@@ -264,46 +233,6 @@ function GroupCreationProgress1({
     debounceRef.current = setTimeout(() => {
       refetch();
     }, 1000);
-  };
-
-  useEffect(() => {
-    setFetching(true);
-    async function fetchContacts() {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status === "granted") {
-        const { data } = await Contacts.getContactsAsync({ sort: "firstName" });
-        const allContacts = data.map((c) => {
-          const defaultPhone =
-            c.phoneNumbers?.find((e) => e.isPrimary) ?? c.phoneNumbers?.[0];
-          return {
-            id: c.id,
-            displayName: buildFullName(c),
-            phoneNumber:
-              formatPhoneNumber(defaultPhone?.number ?? "", {
-                country: defaultPhone?.countryCode,
-              }) ?? "",
-          };
-        });
-        setContacts(allContacts);
-        const phones = allContacts
-          .slice(0, 101)
-          .filter((c) => validatePhoneNumber(c.phoneNumber))
-          .map((c) => c.phoneNumber) as string[];
-
-        if (!phones.length) {
-          setFetching(false);
-          return;
-        }
-        matchContactsMutate(phones);
-      } else {
-        setFetching(false);
-      }
-    }
-    fetchContacts();
-  }, []);
-
-  const buildFullName = (c: Contacts.Contact) => {
-    return `${c.firstName} ${c.lastName}`.trim();
   };
 
   const matchedPhoneContacts = contacts
@@ -357,10 +286,19 @@ function GroupCreationProgress1({
             <ActivityIndicator size="small" />
           </View>
         ) : matchedUsers.length === 0 ? (
-          <View className="py-6 items-center justify-center">
-            <AppText variant="body-sm-regular" color="subtext">
-              No matched contacts found
+          <View className="py-6 items-center justify-center gap-2">
+            <AppText variant="body-sm-regular" color="subtext" className="text-center">
+              {contactsStatus === "denied"
+                ? "Allow access to contacts in Settings, or search for people by name."
+                : "No matched contacts found"}
             </AppText>
+            {contactsStatus === "error" && (
+              <Pressable onPress={() => void retry()} accessibilityRole="button">
+                <AppText variant="body-sm-medium" color="primary">
+                  Try again
+                </AppText>
+              </Pressable>
+            )}
           </View>
         ) : (
           <FlatList
@@ -441,16 +379,12 @@ function GroupCreationProgress1({
 function GroupCreationProgress2({
   groupName,
   setGroupName,
-  groupDescription,
-  setGroupDescription,
   selectedUsers,
   image,
   setImage,
 }: {
   groupName: string;
   setGroupName: (name: string) => void;
-  setGroupDescription: (name: string) => void;
-  groupDescription: string;
   selectedUsers: Array<{ id: string; displayName: string; avatarUrl?: string }>;
   image?: string;
   setImage: (image: string) => void;
@@ -484,11 +418,13 @@ function GroupCreationProgress2({
     <View className="gap-5">
       <TouchableOpacity
         activeOpacity={0.8}
-        className="size-32 bg-primary-50 items-center justify-center rounded-full self-center"
+        className="size-32 bg-primary-50 items-center justify-center rounded-full self-center overflow-hidden"
         onPress={pickImage}
+        accessibilityRole="button"
+        accessibilityLabel={image ? "Change group photo" : "Add group photo"}
       >
-        {image && image !== "" ? (
-          <Image source={{ uri: image }} />
+        {image ? (
+          <Image source={{ uri: image }} className="size-full" />
         ) : (
           <SolidAddAPhotoSvg
             width={48}
@@ -502,12 +438,6 @@ function GroupCreationProgress2({
         label="Name of group"
         value={groupName}
         onChangeText={setGroupName}
-      />
-      <AppTextField
-        label="Description (Optional)"
-        placeholder="Description"
-        value={groupDescription}
-        onChangeText={setGroupDescription}
       />
 
       <View>

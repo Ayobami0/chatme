@@ -17,7 +17,8 @@ import {
 } from "../query";
 import { confirmConversationRemoval } from "../components/confirm-conversation-removal";
 import { router } from "expo-router";
-import Toast from "react-native-toast-message";
+import { runBulk } from "../utils/run-bulk";
+import { BulkActionLabel, showBulkOutcome } from "../components/bulk-outcome-toast";
 import {
   SolidArchiveSvg,
   SolidPushPinSvg,
@@ -155,65 +156,29 @@ export default function ChatsScreen() {
     setSelectedIds([]);
   };
 
-  const pinMutate = (ids: string[]) => {
-    ids.forEach((id) => pinMutation.mutate(id));
-    handleClearSelection();
-    Toast.show({
-      type: "native",
-      position: "bottom",
-      text1: "Chat pinned successfully",
-      props: { icon: SolidPushPinSvg },
-    });
+  // Reports the real outcome once every request settles; failed chats stay selected for retry.
+  const runBulkAction = async (
+    ids: string[],
+    mutateAsync: (id: string) => Promise<unknown>,
+    label: BulkActionLabel,
+  ) => {
+    const result = await runBulk(ids, (id) => mutateAsync(id));
+    setSelectedIds((prev) => (prev.length > 0 ? result.failed : prev));
+    showBulkOutcome(result, label);
   };
 
-  const unpinMutate = (ids: string[]) => {
-    ids.forEach((id) => unpinMutation.mutate(id));
-    handleClearSelection();
-    Toast.show({
-      type: "native",
-      position: "bottom",
-      text1: "Chat un-pinned successfully",
-      props: { icon: SolidPushPinSvg },
-    });
-  };
-
-  const archiveMutate = (ids: string[]) => {
-    ids.forEach((id) => archiveMutation.mutate(id));
-    handleClearSelection();
-    Toast.show({
-      type: "native",
-      position: "bottom",
-      text1: "Chat archived successfully",
-      props: { icon: SolidArchiveSvg },
-    });
-  };
-
-  const unarchiveMutate = (ids: string[]) => {
-    ids.forEach((id) => unarchiveMutation.mutate(id));
-    handleClearSelection();
-  };
-
-  const muteMutate = (ids: string[]) => {
-    ids.forEach((id) => muteMutation.mutate(id));
-    handleClearSelection();
-    Toast.show({
-      type: "native",
-      position: "bottom",
-      text1: "Chat muted successfully",
-      props: { icon: SolidVolumeUp1Svg },
-    });
-  };
-
-  const unmuteMutate = (ids: string[]) => {
-    ids.forEach((id) => unmuteMutation.mutate(id));
-    handleClearSelection();
-    Toast.show({
-      type: "native",
-      position: "bottom",
-      text1: "Chat un-muted successfully",
-      props: { icon: SolidVolumeUp1Svg },
-    });
-  };
+  const pinMutate = (ids: string[]) =>
+    runBulkAction(ids, pinMutation.mutateAsync, { verb: "pin", past: "pinned", icon: SolidPushPinSvg });
+  const unpinMutate = (ids: string[]) =>
+    runBulkAction(ids, unpinMutation.mutateAsync, { verb: "unpin", past: "unpinned", icon: SolidPushPinSvg });
+  const archiveMutate = (ids: string[]) =>
+    runBulkAction(ids, archiveMutation.mutateAsync, { verb: "archive", past: "archived", icon: SolidArchiveSvg });
+  const unarchiveMutate = (ids: string[]) =>
+    runBulkAction(ids, unarchiveMutation.mutateAsync, { verb: "unarchive", past: "unarchived", icon: SolidArchiveSvg });
+  const muteMutate = (ids: string[]) =>
+    runBulkAction(ids, muteMutation.mutateAsync, { verb: "mute", past: "muted", icon: SolidVolumeUp1Svg });
+  const unmuteMutate = (ids: string[]) =>
+    runBulkAction(ids, unmuteMutation.mutateAsync, { verb: "unmute", past: "unmuted", icon: SolidVolumeUp1Svg });
 
   const handlePin = (conversationId?: string) => {
     if (conversationId) {

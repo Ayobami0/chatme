@@ -2,7 +2,6 @@ import { AppAvatar, AppText, useRealtime } from "@components";
 import { ConversationModel } from "@shared/types/models";
 import { Pressable, TouchableOpacity, View } from "react-native";
 import { diffInSeconds, formatDateTime } from "@shared/utils/datetime";
-import { router } from "expo-router";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { AppColor } from "@shared/theme/color";
 import { FC, useEffect, useState } from "react";
@@ -26,6 +25,7 @@ import * as Haptics from "expo-haptics";
 import { useColorScheme } from "nativewind";
 import { useAuth } from "@shared/context/auth-context";
 import { getRemovalAction } from "../utils/conversation-removal";
+import { openConversation } from "@features/chat/navigation";
 
 const SWIPE_REMOVAL_LABEL = {
   "remove-for-me": "Remove",
@@ -107,19 +107,7 @@ export function ConversationCard(props: ConversationCardProps) {
     };
   }, [socket, status, isDirect, otherParticipant, conversation.id]);
 
-  const navigateToChat = () => {
-    router.push({
-      // @ts-ignore
-      pathname: `/chat/${conversation.id}`,
-      params: {
-        isGroup: String(conversation.type === "group"),
-        activeAt: conversation.lastActivityAt ?? "",
-        participantId: isDirect ? conversation.otherParticipant.id : "",
-        displayName: encodeURIComponent(displayName),
-        profileUrl: encodeURIComponent(avatarUrl ?? ""),
-      },
-    });
-  };
+  const navigateToChat = () => openConversation(conversation);
 
   return (
     <ReanimatedSwipeable
