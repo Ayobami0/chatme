@@ -52,20 +52,14 @@ export function useConversations() {
     onSuccess: invalidate,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => ConversationService.deleteGroupConversation(id),
-    onSuccess: invalidate,
-  });
-
   return {
     conversationsQuery,
-    conversations: conversationsQuery.data ?? [],
+    conversations: conversationsQuery.data,
     pinMutation,
     unpinMutation,
     archiveMutation,
     unarchiveMutation,
     muteMutation,
     unmuteMutation,
-    deleteMutation,
   };
 }

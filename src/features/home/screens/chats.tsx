@@ -1,5 +1,5 @@
 import { AppText, AppView, useRealtime } from "@components";
-import { FlatList, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
 import { ChatsHeader } from "../components/chats-header";
 import { useEffect, useState } from "react";
 import { PinCodeModal } from "../components/pin-code-modal";
@@ -7,13 +7,15 @@ import { FABOptionModal } from "../components/fab-option-modal";
 import { FloatingActionButton } from "../components/fab";
 import { ContactListModal } from "../components/contact-list-modal";
 import { NewGroupModal } from "../components/new-group-modal";
-import { DUMMY_CONVERSATIONS } from "@constants";
 import { ConversationCard } from "../components/conversation-card";
 import { ArchivedChatCard } from "../components/archived-chat-card";
-import { useConversations, useArchivedConversations } from "../query";
-import { ConversationService } from "@services/conversation";
+import {
+  useConversations,
+  useArchivedConversations,
+  useConversationRemoval,
+} from "../query";
+import { confirmConversationRemoval } from "../components/confirm-conversation-removal";
 import { useCacheStore } from "@shared/store/cache";
-import { ConversationModel } from "@shared/types/models";
 import { router } from "expo-router";
 import Toast from "react-native-toast-message";
 import {
@@ -43,9 +45,8 @@ export default function ChatsScreen() {
     unarchiveMutation,
     muteMutation,
     unmuteMutation,
-    deleteMutation,
   } = useConversations();
-  const { refetch } = conversationsQuery;
+  const removalMutation = useConversationRemoval();
 
   const { archivedQuery } = useArchivedConversations();
   const { data: archivedConversationsResp, refetch: refetchArcchived } =
@@ -69,11 +70,12 @@ export default function ChatsScreen() {
     void hydrateCache();
   }, [hydrateCache]);
 
+  // Only a successful response is authoritative; loading/failed states keep the cached list.
   useEffect(() => {
-    if (data) {
-      setConversations(data);
+    if (conversationsQuery.isSuccess) {
+      setConversations(conversationsQuery.data);
     }
-  }, [data, setConversations]);
+  }, [conversationsQuery.isSuccess, conversationsQuery.data, setConversations]);
 
   useEffect(() => {
     if (!socket || status !== "connected") return;
@@ -93,10 +95,7 @@ export default function ChatsScreen() {
     void queryClient.invalidateQueries({ queryKey: ["conversations"] });
   }, [activityVersion, reconcileVersion, queryClient]);
 
-  const conversations =
-    cachedConversations.length > 0
-      ? cachedConversations
-      : [...(data ?? []), ...DUMMY_CONVERSATIONS];
+  const conversations = data ?? cachedConversations;
 
   const archivedConversations = archivedConversationsResp ?? [];
 
@@ -164,20 +163,6 @@ export default function ChatsScreen() {
     setSelectedIds([]);
   };
 
-  const updateLocalConversations = (
-    updater: (c: ConversationModel) => ConversationModel | null,
-  ) => {
-    const current =
-      cachedConversations.length > 0
-        ? cachedConversations
-        : [...(data ?? []), ...DUMMY_CONVERSATIONS];
-    const updated = current
-      .map((c) => updater(c))
-      .filter((c): c is ConversationModel => c !== null);
-    setConversations(updated);
-    queryClient.setQueryData(["conversations"], updated);
-  };
-
   const pinMutate = (ids: string[]) => {
     ids.forEach((id) => pinMutation.mutate(id));
     handleClearSelection();
@@ -236,11 +221,6 @@ export default function ChatsScreen() {
       text1: "Chat un-muted successfully",
       props: { icon: SolidVolumeUp1Svg },
     });
-  };
-
-  const deleteMutate = (ids: string[]) => {
-    ids.forEach((id) => deleteMutation.mutate(id));
-    handleClearSelection();
   };
 
   const handlePin = (conversationId?: string) => {
@@ -302,7 +282,12 @@ export default function ChatsScreen() {
 
   const handleDelete = (conversationId?: string) => {
     const ids = conversationId ? [conversationId] : selectedIds;
-    if (ids.length > 0) deleteMutate(ids);
+    const targets = conversations.filter((c) => ids.includes(c.id));
+    if (targets.length === 0) return;
+
+    confirmConversationRemoval(targets, removalMutation.mutateAsync, {
+      onDone: ({ failed }) => setSelectedIds(failed.map((c) => c.id)),
+    });
   };
 
   return (
@@ -353,10 +338,28 @@ export default function ChatsScreen() {
             />
           )}
           ListEmptyComponent={
-            <View className="py-12 items-center justify-center">
-              <AppText variant="body-md-medium" color="subtext">
-                No conversations yet
-              </AppText>
+            <View className="py-12 items-center justify-center gap-3">
+              {conversationsQuery.isPending ? (
+                <ActivityIndicator />
+              ) : conversationsQuery.isError ? (
+                <>
+                  <AppText variant="body-md-medium" color="subtext">
+                    Unable to load conversations
+                  </AppText>
+                  <Pressable
+                    onPress={() => void conversationsQuery.refetch()}
+                    accessibilityRole="button"
+                  >
+                    <AppText variant="body-md-medium" color="primary">
+                      Try again
+                    </AppText>
+                  </Pressable>
+                </>
+              ) : (
+                <AppText variant="body-md-medium" color="subtext">
+                  No conversations yet
+                </AppText>
+              )}
             </View>
           }
         />

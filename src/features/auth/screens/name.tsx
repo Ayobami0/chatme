@@ -15,7 +15,6 @@ import { useUpdateProfile } from "../query";
 import { SolidUserSvg } from "@shared/components/svgs/icons";
 import { router } from "expo-router";
 import StorageService, { StorageKey } from "@services/storage";
-import { log } from "@core/logging";
 
 export default function ProfileNameScreen() {
   const { setStage } = useAuthFlowStore();
@@ -26,7 +25,6 @@ export default function ProfileNameScreen() {
       { displayName: value.fullName },
       {
         onSuccess: async () => {
-          log.info(await StorageService.secureGet(StorageKey.AuthToken));
           await StorageService.save(StorageKey.ProfileFlowStage, "image");
           router.push("/profile-image");
           setStage("image");
@@ -35,7 +33,7 @@ export default function ProfileNameScreen() {
           toast.show({
             type: "error",
             text1: "Error",
-            text2: "Unable to update profile image",
+            text2: "Unable to update your name",
           });
         },
       },

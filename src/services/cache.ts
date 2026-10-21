@@ -38,6 +38,12 @@ export class CacheService {
     );
   }
 
+  static async removeMessages(conversationId: string): Promise<void> {
+    await StorageService.remove(
+      `${CACHE_KEYS.MESSAGES_PREFIX}${conversationId}`,
+    );
+  }
+
   static async clearAllCache(): Promise<void> {
     try {
       const allKeys = await AsyncStorage.getAllKeys();

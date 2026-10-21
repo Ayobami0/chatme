@@ -24,7 +24,8 @@ export function Row({
   const Icon = icon;
   const SurfixIcon = surfixIcon;
   const { colorScheme } = useColorScheme();
-  const resolvedIconColor = iconColor ?? useThemeColor("primary");
+  const primaryColor = useThemeColor("primary");
+  const resolvedIconColor = iconColor ?? primaryColor;
   const resolvedTextColor =
     textColor ??
     (colorScheme === "dark" ? AppColor.whiteOther : AppColor.neutral600);

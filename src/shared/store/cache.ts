@@ -113,6 +113,19 @@ export const useCacheStore = create(
         void CacheService.saveConversations(updatedConvs);
       },
 
+      removeConversation: (conversationId: string) => {
+        const updatedConvs = get().conversations.filter(
+          (c) => c.id !== conversationId,
+        );
+        set((state) => {
+          const { [conversationId]: _removed, ...messagesByConversation } =
+            state.messagesByConversation;
+          return { conversations: updatedConvs, messagesByConversation };
+        });
+        void CacheService.saveConversations(updatedConvs);
+        void CacheService.removeMessages(conversationId);
+      },
+
       clearCache: async () => {
         set({
           isHydrated: false,

@@ -61,8 +61,14 @@ export class ConversationService {
     return response.data;
   }
 
-  static async deleteGroupConversation(conversationId: string): Promise<void> {
+  /** Deletes a group for every member. Requires the current user to be its owner. */
+  static async deleteGroup(conversationId: string): Promise<void> {
     await apiClient.delete(`/conversations/${conversationId}`);
+  }
+
+  /** Removes a direct chat from the current user's list only; the other participant is unaffected. */
+  static async removeDirectConversationForMe(conversationId: string): Promise<void> {
+    await apiClient.delete(`/conversations/${conversationId}/for-me`);
   }
 
   static async getConversationById(

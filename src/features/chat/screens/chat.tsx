@@ -314,7 +314,6 @@ export default function ChatScreen(props: ChatScreenProps) {
         contentType: a.contentType,
       }));
     }
-    console.log("Converted attachments", convertedAttachments);
     const message: MessageModel = {
       id,
       conversationId: conversationId,
@@ -662,12 +661,23 @@ function ChatFooter(props: {
   onFocus?: () => void;
 }) {
   const [text, setText] = useState("");
-  const inputRef = useRef<TextInput>(null);
   const clipIconColor = useThemeColor("subtext");
   const sendIconColor = useThemeColor("primary-foreground");
   const placeholderColor = useThemeColor("placeholder");
   const [showMediaSelection, setShowMediaSelection] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const canSend = text.trim().length > 0 || attachments.length > 0;
+
+  const send = () => {
+    if (!canSend) return;
+    props.onSend(
+      text.trim(),
+      attachments.length > 0 ? "image" : "text",
+      attachments,
+    );
+    setText("");
+    setAttachments([]);
+  };
 
   return (
     <View className="gap-2">
@@ -742,32 +752,29 @@ function ChatFooter(props: {
           onPress={() => {
             setShowMediaSelection(!showMediaSelection);
           }}
-          className="rounded-full size-10 items-center justify-center bg-surface bg-"
+          className="rounded-full size-10 items-center justify-center bg-surface"
+          accessibilityRole="button"
+          accessibilityLabel="Add attachment"
+          accessibilityState={{ expanded: showMediaSelection }}
         >
           <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />
         </Pressable>
         <TextInput
           onFocus={props.onFocus}
-          ref={inputRef}
           className="flex-1 text-title"
+          value={text}
           onChangeText={setText}
+          accessibilityLabel="Message"
           placeholder="Start typing..."
           placeholderTextColor={placeholderColor}
         />
         <Pressable
-          className="size-10 rounded-full bg-primary items-center justify-center"
-          onPress={() => {
-            if (text.trim() || attachments.length > 0) {
-              props.onSend(
-                text,
-                attachments.length > 0 ? "image" : "text",
-                attachments,
-              );
-              inputRef.current?.clear();
-              setText("");
-              setAttachments([]);
-            }
-          }}
+          className={`size-10 rounded-full bg-primary items-center justify-center ${canSend ? "" : "opacity-50"}`}
+          disabled={!canSend}
+          onPress={send}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          accessibilityState={{ disabled: !canSend }}
         >
           <SolidPaperAirplaneSvg color={sendIconColor} />
         </Pressable>

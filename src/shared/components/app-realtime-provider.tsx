@@ -63,7 +63,6 @@ export function AppRealtimeProvider({
     setSocket(next);
     setStatus("connecting");
 
-    log.debug(status);
     const onConnect = () => {
       log.debug("connected to socket");
       setStatus("connected");
@@ -78,7 +77,7 @@ export function AppRealtimeProvider({
     };
     const onReconnectAttempt = () => setStatus("reconnecting");
     const onConnectError = (error: Error & { data?: { code?: string } }) => {
-      log.debug("disconnected from socket", { error });
+      log.warn("socket connect error", error?.message);
       setStatus("disconnected");
       if (error.data?.code === "AUTH_ACCESS_TOKEN_INVALID") {
         void TokenManager.refreshToken().catch(() => undefined);
@@ -121,8 +120,8 @@ export function AppRealtimeProvider({
     next.on("message.created", onMessage);
     next.on("receipt.delivered", bumpActivity);
     next.on("receipt.read", bumpActivity);
-    next.onAny((event, ...args) => {
-      log.info(`socket event: ${event}`, ...args);
+    next.onAny((event) => {
+      log.debug(`socket event: ${event}`);
     });
 
     return () => {

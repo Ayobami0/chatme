@@ -47,19 +47,13 @@ export function useArchivedConversations() {
     onSuccess: invalidate,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => ConversationService.deleteGroupConversation(id),
-    onSuccess: invalidate,
-  });
-
   return {
     archivedQuery,
-    archivedConversations: archivedQuery.data ?? [],
+    archivedConversations: archivedQuery.data,
     unarchiveMutation,
     pinMutation,
     unpinMutation,
     muteMutation,
     unmuteMutation,
-    deleteMutation,
   };
 }

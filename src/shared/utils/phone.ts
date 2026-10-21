@@ -4,12 +4,10 @@ export function formatPhoneNumber(
   phoneNumber: string,
   opt?: { country?: string },
 ): string | undefined {
-  console.log(phoneNumber, opt);
   const parsed = parsePhoneNumber(phoneNumber, {
     defaultCountry: opt?.country?.toUpperCase() as CountryCode | undefined,
   });
 
-  console.log(parsed);
   if (!parsed) {
     return undefined;
   }

@@ -25,6 +25,13 @@ import { PresenceChangedEventPayload } from "@shared/types/realtime";
 import * as Haptics from "expo-haptics";
 import { useColorScheme } from "nativewind";
 import { useAuth } from "@shared/context/auth-context";
+import { getRemovalAction } from "../utils/conversation-removal";
+
+const SWIPE_REMOVAL_LABEL = {
+  "remove-for-me": "Remove",
+  "delete-group": "Delete",
+  "leave-group": "Leave",
+} as const;
 
 type ConversationCardProps = {
   conversation: ConversationModel;
@@ -144,7 +151,7 @@ export function ConversationCard(props: ConversationCardProps) {
         <View className="flex-row gap-2 ml-2">
           <SwipeAction
             color={AppColor.danger}
-            label="Delete"
+            label={SWIPE_REMOVAL_LABEL[getRemovalAction(conversation)]}
             onPress={onDelete}
             icon={SolidTrashSvg}
           />

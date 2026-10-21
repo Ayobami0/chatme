@@ -1,8 +1,8 @@
 import { AppText, AppView, useRealtime } from "@components";
-import { ConversationService } from "@services/conversation";
 import { OutlineCheveronLeftSvg } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
-import { useArchivedConversations } from "../query";
+import { useArchivedConversations, useConversationRemoval } from "../query";
+import { confirmConversationRemoval } from "../components/confirm-conversation-removal";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
@@ -14,14 +14,14 @@ export default function ArchivedChatsScreen() {
 
   const {
     archivedQuery,
-    archivedConversations: conversations,
+    archivedConversations: conversations = [],
     unarchiveMutation,
     pinMutation,
     unpinMutation,
     muteMutation,
     unmuteMutation,
-    deleteMutation,
   } = useArchivedConversations();
+  const removalMutation = useConversationRemoval();
   const { refetch } = archivedQuery;
 
   useEffect(() => {
@@ -73,11 +73,6 @@ export default function ArchivedChatsScreen() {
     handleClearSelection();
   };
 
-  const deleteMutate = (ids: string[]) => {
-    ids.forEach((id) => deleteMutation.mutate(id));
-    handleClearSelection();
-  };
-
   const handleUnarchive = (conversationId?: string) => {
     const ids = conversationId ? [conversationId] : selectedIds;
     if (ids.length > 0) unarchiveMutate(ids);
@@ -102,7 +97,8 @@ export default function ArchivedChatsScreen() {
   };
 
   const handleDelete = (conversationId: string) => {
-    deleteMutate([conversationId]);
+    const target = conversations.find((c) => c.id === conversationId);
+    if (target) confirmConversationRemoval([target], removalMutation.mutateAsync);
   };
 
   const onPrimaryColor = useThemeColor("primary-foreground");
