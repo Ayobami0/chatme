@@ -1,58 +1,35 @@
-import { useMutation, UseMutationOptions, UseMutationResult } from "@tanstack/react-query";
-import { MediaService, UploadMediaInput } from "@services/media";
-import { MediaAssetResponseDto } from "@shared/types/api";
+import { useMutation } from "@tanstack/react-query";
+import { MediaService } from "@services/media";
+import { MediaAssetResponseDto, MediaPurpose } from "@shared/types/api";
+import { PickedImage, prepareImageForUpload } from "@shared/utils/media-file";
 
-export type UploadParticulars = UploadMediaInput;
-
-export interface UseUploadOptions
-  extends Omit<
-    UseMutationOptions<MediaAssetResponseDto, Error, UploadParticulars>,
-    "mutationFn"
-  > {}
-
-export function useUpload(
-  initialParticulars?: Partial<UploadParticulars>,
-  options?: UseUploadOptions,
-) {
-  const mutation = useMutation<MediaAssetResponseDto, Error, UploadParticulars>({
-    mutationFn: async (particulars?: UploadParticulars) => {
-      const mergedInput: UploadParticulars = {
-        ...initialParticulars,
-        ...particulars,
-      } as UploadParticulars;
-
-      if (!mergedInput.uri) {
-        throw new Error("File URI is required for upload");
-      }
-
-      return await MediaService.uploadMedia(mergedInput);
+/**
+ * Uploads a picked image for `purpose`: converts/validates it, then runs the
+ * authorize → storage upload → complete sequence. Resolves with the completed asset.
+ */
+export function useUpload(purpose: MediaPurpose) {
+  const mutation = useMutation<
+    MediaAssetResponseDto,
+    Error,
+    PickedImage & { clientUploadId?: string }
+  >({
+    mutationFn: async ({ clientUploadId, ...image }) => {
+      const file = await prepareImageForUpload(image);
+      return MediaService.uploadMedia({
+        uri: file.uri,
+        purpose,
+        contentType: file.contentType,
+        originalFilename: file.fileName,
+        sizeBytes: file.sizeBytes,
+        clientUploadId,
+      });
     },
-    ...options,
   });
 
-  const upload = (particulars?: string | UploadParticulars) => {
-    let input: UploadParticulars;
-    if (typeof particulars === "string") {
-      input = { ...initialParticulars, uri: particulars } as UploadParticulars;
-    } else {
-      input = { ...initialParticulars, ...particulars } as UploadParticulars;
-    }
-    return mutation.mutateAsync(input);
-  };
-
   return {
-    upload,
-    uploadAsync: upload,
-    mutate: mutation.mutate,
-    mutateAsync: mutation.mutateAsync,
-    status: mutation.status,
-    file: mutation.data ?? null,
-    data: mutation.data,
-    error: mutation.error,
+    upload: mutation.mutateAsync,
     isPending: mutation.isPending,
-    isIdle: mutation.isIdle,
-    isSuccess: mutation.isSuccess,
-    isError: mutation.isError,
+    error: mutation.error,
     reset: mutation.reset,
   };
 }

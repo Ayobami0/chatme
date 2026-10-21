@@ -9,7 +9,9 @@ export type OutboxAttachment = {
   localUri: string;
   sizeBytes: number;
   fileName: string;
-  contentType: AllowedContentType | undefined;
+  contentType: AllowedContentType;
+  /** Generated once per attachment and reused on every retry of its upload. */
+  clientUploadId: string;
   /** Set once uploaded, so a retry doesn't upload the file again. */
   mediaId?: string;
 };
@@ -59,6 +61,15 @@ export const useOutboxStore = create<OutboxState>()(
       name: "chat_outbox",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({ entries: s.entries }),
+      version: 1,
+      // v0 attachments lacked real metadata and an upload id; keep only entries that can be sent.
+      migrate: (persisted) => {
+        const entries = (persisted as { entries?: Record<string, OutboxEntry> })?.entries ?? {};
+        const sendable = Object.values(entries).filter((e) =>
+          e.attachments.every((a) => a.contentType && a.sizeBytes > 0 && a.clientUploadId),
+        );
+        return { entries: Object.fromEntries(sendable.map((e) => [e.clientMessageId, e])) };
+      },
     },
   ),
 );

@@ -7,8 +7,7 @@ import {
 } from "@shared/components/svgs/icons";
 import { AppColor } from "@shared/theme/color";
 import { useEffect } from "react";
-import { Image, View } from "react-native";
-import Svg, { Circle } from "react-native-svg";
+import { ActivityIndicator, Image, View } from "react-native";
 
 export type ImageIllustrationState = "uploading" | "idle" | "uploaded";
 
@@ -47,7 +46,7 @@ export function ImageIllustration(props: ImageIllustrationProps) {
         <View className="absolute size-full justify-end -bottom-3">
           <View className=" bg-white items-center self-center rounded-2xl pt-4 pb-[47]">
             {state === "uploading" ? (
-              <CircleProgress total={100} progress={20} />
+              <ActivityIndicator size="large" color={AppColor.primary400} />
             ) : (
               <IllustrationCircleSvg />
             )}
@@ -57,58 +56,6 @@ export function ImageIllustration(props: ImageIllustrationProps) {
           <View />
         </View>
       </View>
-    </View>
-  );
-}
-
-function CircleProgress({
-  total,
-  progress,
-}: {
-  total: number;
-  progress: number;
-}) {
-  const size = 48;
-  const strokeWidth = 4;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  const percentage = Math.min(Math.max(progress / total, 0), 1);
-
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-      }}
-    >
-      <Svg width={size} height={size} style={{ position: "absolute" }}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={AppColor.divider}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={AppColor.primary400}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - percentage)}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-      <SolidUploadSvg color={AppColor.primary400} />
     </View>
   );
 }

@@ -1,15 +1,18 @@
 import {
   AppAvatar,
   AppLinearProgressIndicator,
+  AppMediaAction,
   AppMediaUpload,
   AppText,
   AppView,
+  toast,
 } from "@components";
 import { ChatBg1Svg } from "@shared/components/svgs/assets";
 import {
   OutlineCheveronLeftSvg,
   OutlinePaperClipSvg,
   SolidPaperAirplaneSvg,
+  SolidPhotographSvg,
   SolidUserGroupSvg,
   SolidXCircleSvg,
 } from "@shared/components/svgs/icons";
@@ -29,10 +32,13 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Linking,
   Pressable,
   TextInput,
   View,
 } from "react-native";
+import * as Crypto from "expo-crypto";
+import * as ImagePicker from "expo-image-picker";
 import {
   ChatBubble,
   MessageState,
@@ -43,7 +49,11 @@ import { useMemo, useState } from "react";
 import { AppColor } from "@shared/theme/color";
 import { useColorScheme } from "nativewind";
 import { Image } from "expo-image";
-import { getContentTypeFromAsset } from "@shared/utils/file-types";
+import {
+  PickedImage,
+  prepareImageForUpload,
+  UnsupportedMediaError,
+} from "@shared/utils/media-file";
 import { useConversationSync } from "../hooks/use-conversation-sync";
 import { LocalMessage, useMessageSender } from "../hooks/use-message-sender";
 import { usePresenceAndTyping } from "../hooks/use-presence-and-typing";
@@ -390,7 +400,60 @@ function ChatFooter(props: {
   const placeholderColor = useThemeColor("placeholder");
   const [showMediaSelection, setShowMediaSelection] = useState(false);
   const [attachments, setAttachments] = useState<OutboxAttachment[]>([]);
-  const canSend = text.trim().length > 0 || attachments.length > 0;
+  const [isPreparing, setIsPreparing] = useState(false);
+  const canSend = (text.trim().length > 0 || attachments.length > 0) && !isPreparing;
+
+  const addImages = async (images: PickedImage[]) => {
+    setShowMediaSelection(false);
+    setIsPreparing(true);
+    try {
+      const prepared = await Promise.all(images.map(prepareImageForUpload));
+      setAttachments((current) => [
+        ...current,
+        ...prepared.map((file) => ({
+          type: "image" as const,
+          localUri: file.uri,
+          sizeBytes: file.sizeBytes,
+          fileName: file.fileName,
+          contentType: file.contentType,
+          clientUploadId: Crypto.randomUUID(),
+        })),
+      ]);
+    } catch (error) {
+      toast.show({
+        type: "error",
+        text1: "Couldn't add photo",
+        text2:
+          error instanceof UnsupportedMediaError
+            ? error.message
+            : "This photo format isn't supported.",
+      });
+    } finally {
+      setIsPreparing(false);
+    }
+  };
+
+  const pickFromLibrary = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Photo access needed",
+        "Allow access to your photos in Settings to send pictures.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Open Settings", onPress: () => void Linking.openSettings() },
+        ],
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
+      quality: 0.8,
+    });
+    if (!result.canceled) void addImages(result.assets);
+  };
 
   const send = () => {
     if (!canSend) return;
@@ -427,25 +490,19 @@ function ChatFooter(props: {
       )}
       {showMediaSelection && (
         <View className="mx-6">
-          {/* Picker and document actions are hidden until they're implemented (Phase 6). */}
+          {/* Documents are hidden until non-image attachments are supported end to end. */}
           <AppMediaUpload
             showRecentImage
             onRecentImagePicked={(uri, data) => {
-              if (uri) {
-                setAttachments((a) => [
-                  ...a,
-                  {
-                    type: "image",
-                    localUri: uri,
-                    sizeBytes: 0,
-                    fileName: data?.filename ?? "",
-                    contentType: getContentTypeFromAsset({ uri }),
-                  },
-                ]);
-                setShowMediaSelection(false);
-              }
+              if (uri) void addImages([{ uri, fileName: data?.filename }]);
             }}
-          />
+          >
+            <AppMediaAction
+              icon={SolidPhotographSvg}
+              label="Photo or Gallery"
+              onPress={() => void pickFromLibrary()}
+            />
+          </AppMediaUpload>
         </View>
       )}
       <View
@@ -467,7 +524,11 @@ function ChatFooter(props: {
           accessibilityLabel="Add attachment"
           accessibilityState={{ expanded: showMediaSelection }}
         >
-          <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />
+          {isPreparing ? (
+            <ActivityIndicator />
+          ) : (
+            <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />
+          )}
         </Pressable>
         <TextInput
           className="flex-1 text-title"

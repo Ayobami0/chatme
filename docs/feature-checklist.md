@@ -11,7 +11,7 @@ A service method existing doesn't make a feature complete. Each row tracks the f
 | Pin / archive / mute (list) | ✅ | ✅ | ✅ | ✅ | Real outcome toasts; failed items stay selected |
 | Mute (chat info switch) | ✅ | ✅ | ✅ | 🟡 | Reverts on failure; no error toast |
 | Send text message | ✅ | ✅ | ✅ | ✅ | Persisted outbox, retry, restart resume |
-| Send image (recent photos) | ✅ | ✅ | 🟡 | ✅ | Upload metadata fixed in Phase 6; picker/camera hidden |
+| Send image (recent photos, library) | ✅ | ✅ | ✅ | ✅ | Real size/type; HEIC converted to JPEG; upload id reused on retry |
 | Documents / audio / video | ✅ | ❌ | ❌ | ❌ | "Document" action hidden |
 | Message history paging | ✅ | ✅ | ✅ | 🟡 | Older-page errors are not surfaced yet |
 | Read receipts (outgoing) | ✅ | ✅ | — | 🟡 | Marked on focus/foreground/new incoming message |
@@ -22,6 +22,7 @@ A service method existing doesn't make a feature complete. Each row tracks the f
 | Chat info: photos, starred, links | 🟡 | ❌ | ❌ | ❌ | Rows (with hardcoded counts) hidden |
 | Voice / video calls | ❌ | ❌ | ❌ | ❌ | Header buttons hidden |
 | Group description | ❌ | ❌ | ❌ | ❌ | Not in create/update DTOs; field hidden |
-| Avatar upload (profile) | ✅ | 🟡 | 🟡 | ❌ | Phase 6 |
+| Avatar upload (profile) | ✅ | ✅ | ✅ | ✅ | Upload → `PUT /me/avatar` → session user; retry keeps upload id |
+| Group avatar (create / edit) | ✅ | ✅ | ✅ | 🟡 | Optional on create; errors shown as toast |
 | PIN lock | ❌ | ❌ | 🟡 | ❌ | Phase 7: hide until implemented |
 | Push notifications | ✅ | ❌ | ❌ | ❌ | Phase 8 |

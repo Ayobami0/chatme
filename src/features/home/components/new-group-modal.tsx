@@ -20,6 +20,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   TouchableOpacity,
@@ -45,7 +46,7 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
     Array<{ id: string; displayName: string; avatarUrl?: string }>
   >([]);
   const [groupName, setGroupName] = useState("");
-  const [image, setImage] = useState<string | undefined>();
+  const [image, setImage] = useState<ImagePicker.ImagePickerAsset | undefined>();
 
   const createGroupMutation = useCreateGroup();
   const isCreating = createGroupMutation.isPending;
@@ -58,7 +59,7 @@ export function NewGroupModal({ isVisible, onClose }: NewGroupModalProps) {
     setGroupName("");
     setImage(undefined);
   };
-  const { upload, isPending } = useUpload({ purpose: "group_avatar" });
+  const { upload, isPending } = useUpload("group_avatar");
 
   const handleClose = () => {
     resetState();
@@ -386,8 +387,8 @@ function GroupCreationProgress2({
   groupName: string;
   setGroupName: (name: string) => void;
   selectedUsers: Array<{ id: string; displayName: string; avatarUrl?: string }>;
-  image?: string;
-  setImage: (image: string) => void;
+  image?: ImagePicker.ImagePickerAsset;
+  setImage: (image: ImagePicker.ImagePickerAsset) => void;
 }) {
   const pickImage = async () => {
     const permissionResult =
@@ -395,8 +396,12 @@ function GroupCreationProgress2({
 
     if (!permissionResult.granted) {
       Alert.alert(
-        "Permission required",
-        "Permission to access the media library is required.",
+        "Photo access needed",
+        "Allow access to your photos in Settings to add a group photo.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Open Settings", onPress: () => void Linking.openSettings() },
+        ],
       );
       return;
     }
@@ -409,9 +414,9 @@ function GroupCreationProgress2({
       quality: 1,
     });
 
-    if (result.assets === null || result.assets?.length === 0) return;
+    if (result.canceled || !result.assets[0]) return;
 
-    setImage(result.assets![0].uri);
+    setImage(result.assets[0]);
   };
 
   return (
@@ -424,7 +429,7 @@ function GroupCreationProgress2({
         accessibilityLabel={image ? "Change group photo" : "Add group photo"}
       >
         {image ? (
-          <Image source={{ uri: image }} className="size-full" />
+          <Image source={{ uri: image.uri }} className="size-full" />
         ) : (
           <SolidAddAPhotoSvg
             width={48}

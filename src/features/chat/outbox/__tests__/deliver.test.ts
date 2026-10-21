@@ -83,7 +83,7 @@ describe("outbox delivery", () => {
       entry({
         kind: "image",
         attachments: [
-          { type: "image", localUri: "file://a.jpg", sizeBytes: 10, fileName: "a.jpg", contentType: "image/jpeg" },
+          { type: "image", localUri: "file://a.jpg", sizeBytes: 10, fileName: "a.jpg", contentType: "image/jpeg", clientUploadId: "upload-1" },
         ],
       }),
     );
@@ -92,6 +92,11 @@ describe("outbox delivery", () => {
     await deliverOutboxEntry(queryClient, "client-1");
 
     expect(uploadMedia).toHaveBeenCalledTimes(1);
+    expect(uploadMedia.mock.calls[0][0]).toMatchObject({
+      clientUploadId: "upload-1",
+      sizeBytes: 10,
+      contentType: "image/jpeg",
+    });
     expect(sendMessage.mock.calls[1][1].attachmentMediaIds).toEqual(["media-1"]);
   });
 

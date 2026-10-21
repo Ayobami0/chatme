@@ -30,8 +30,9 @@ export async function deliverOutboxEntry(queryClient: QueryClient, clientMessage
         uri: attachment.localUri,
         purpose: "message_attachment",
         contentType: attachment.contentType,
-        originalFilename: attachment.fileName || undefined,
-        sizeBytes: attachment.sizeBytes || undefined,
+        originalFilename: attachment.fileName,
+        sizeBytes: attachment.sizeBytes,
+        clientUploadId: attachment.clientUploadId,
       });
       attachments[index] = { ...attachment, mediaId: media.id };
       useOutboxStore.getState().update(clientMessageId, { attachments: [...attachments] });
