@@ -1,3 +1,4 @@
+import { queryKeys } from "@core/query/keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
 import { MuteConversationDto } from "@shared/types/api";
@@ -6,7 +7,7 @@ export function useArchivedConversations() {
   const queryClient = useQueryClient();
 
   const archivedQuery = useQuery({
-    queryKey: ["archivedConversations"],
+    queryKey: queryKeys.archivedConversations,
     queryFn: async () => {
       const response = await ConversationService.getArchivedConversations();
       return response.items;
@@ -14,8 +15,8 @@ export function useArchivedConversations() {
   });
 
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["archivedConversations"] });
-    void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.archivedConversations });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
   };
 
   const unarchiveMutation = useMutation({
@@ -47,19 +48,13 @@ export function useArchivedConversations() {
     onSuccess: invalidate,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => ConversationService.deleteGroupConversation(id),
-    onSuccess: invalidate,
-  });
-
   return {
     archivedQuery,
-    archivedConversations: archivedQuery.data ?? [],
+    archivedConversations: archivedQuery.data,
     unarchiveMutation,
     pinMutation,
     unpinMutation,
     muteMutation,
     unmuteMutation,
-    deleteMutation,
   };
 }

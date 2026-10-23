@@ -13,30 +13,33 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Contacts from "expo-contacts";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
-import { useSearchUsers, useMatchContacts, useCreateDirectConversation } from "../query";
-import { formatPhoneNumber, validatePhoneNumber } from "@shared/utils/phone";
+import { useSearchUsers, useCreateDirectConversation } from "../query";
+import {
+  ContactMatchStatus,
+  useDeviceContactMatches,
+} from "../hooks/use-device-contact-matches";
+import { DeviceContact } from "../utils/contact-matching";
+import { openConversation } from "@features/chat/navigation";
 import { ConversationUser } from "@shared/types/models";
-import { router } from "expo-router";
 
 type ContactListModalProps = {
   onClose: () => void;
 };
 
-type AppContact = {
-  id: string;
-  displayName: string;
-  phoneNumber?: string;
-};
+type ContactRow =
+  | { kind: "user"; key: string; user: ConversationUser; label: string }
+  | { kind: "contact"; key: string; contact: DeviceContact };
+
+const rowName = (row: ContactRow) =>
+  row.kind === "user" ? row.label : row.contact.displayName;
 
 export function ContactListModal(props: ContactListModalProps) {
   const { onClose } = props;
   const closeIconColor = useThemeColor("foreground");
-  const [contacts, setContacts] = useState<AppContact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [fetching, setFetching] = useState(false);
+  const { contacts, status, retry } = useDeviceContactMatches();
   const searchUsersQuery = useSearchUsers(searchQuery);
   const {
     data: searchResults,
@@ -45,20 +48,6 @@ export function ContactListModal(props: ContactListModalProps) {
   } = searchUsersQuery;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const matchContactsMutation = useMatchContacts();
-  const mutate = (numbers: string[]) => {
-    matchContactsMutation.mutate(numbers, {
-      onSuccess: ({ matches }) => {
-        const hydratedContacts = contacts.map((c) => ({
-          ...c,
-          user: matches.find((m) => m.matchedPhoneNumber === c.phoneNumber)?.user,
-        }));
-        setContacts(hydratedContacts);
-        setFetching(false);
-      },
-      onError: () => setFetching(false),
-    });
-  };
   const searchUsers = (query: string) => {
     if (query.trim().length < 3) return;
     if (debounceRef.current) {
@@ -68,48 +57,28 @@ export function ContactListModal(props: ContactListModalProps) {
       refetch();
     }, 1500);
   };
-  const searchedContact = searchResults?.items ?? [];
-  useEffect(() => {
-    setFetching(true);
-    async function fetchContacts() {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status === "granted") {
-        const { data } = await Contacts.getContactsAsync({ sort: "firstName" });
-        const allContacts = data.map((c) => {
-          const defaultPhone =
-            c.phoneNumbers?.find((e) => e.isPrimary) ?? c.phoneNumbers?.[0];
-          return {
-            id: c.id,
-            displayName: buildFullName(c),
-            phoneNumber:
-              formatPhoneNumber(defaultPhone?.number ?? "", {
-                country: defaultPhone?.countryCode,
-              }) ?? "",
-          };
-        });
-        setContacts(allContacts);
-        const phones = allContacts
-          .slice(0, 101)
-          .filter((c) => validatePhoneNumber(c.phoneNumber))
-          .map((c) => c.phoneNumber) as string[];
 
-        if (!phones.length) {
-          setFetching(false);
-          return;
-        }
-        mutate(phones);
-      }
-    }
-    fetchContacts();
-  }, []);
-
-  const buildFullName = (c: Contacts.Contact) => {
-    return `${c.firstName} ${c.lastName}`;
-  };
-
-  const filteredContacts = contacts.filter((c) =>
-    c.displayName.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const query = searchQuery.toLowerCase();
+  const searchRows: ContactRow[] = (searchResults?.items ?? []).map((user) => ({
+    kind: "user",
+    key: `search:${user.id}`,
+    user,
+    label: user.displayName ?? "User",
+  }));
+  // Matched contacts open a chat with their server user; the rest can be invited.
+  const contactRows: ContactRow[] = contacts
+    .filter((c) => c.displayName.toLowerCase().includes(query))
+    .map((contact) =>
+      contact.user
+        ? {
+            kind: "user",
+            key: `contact:${contact.deviceContactId}`,
+            user: contact.user,
+            label: contact.displayName || contact.user.displayName || "User",
+          }
+        : { kind: "contact", key: `contact:${contact.deviceContactId}`, contact },
+    );
+  const rows = [...searchRows, ...contactRows];
 
   return (
     <View>
@@ -120,6 +89,8 @@ export function ContactListModal(props: ContactListModalProps) {
             <Pressable
               className="absolute right-6 justify-center items-center"
               onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
             >
               <SolidXSvg color={closeIconColor} />
             </Pressable>
@@ -127,9 +98,7 @@ export function ContactListModal(props: ContactListModalProps) {
           <AppTextField
             surfix={isSearching ? () => <ActivityIndicator /> : undefined}
             placeholder="Search People"
-            icon={({ isFocused }) => (
-              <OutlineSearchSvg width={20} height={20} />
-            )}
+            icon={() => <OutlineSearchSvg width={20} height={20} />}
             className="mx-6"
             onChangeText={(v) => {
               setSearchQuery(v);
@@ -139,12 +108,15 @@ export function ContactListModal(props: ContactListModalProps) {
           <FlatList
             style={{ width: "100%" }}
             contentContainerStyle={{ paddingVertical: 20 }}
-            data={[...searchedContact, ...filteredContacts]}
-            keyExtractor={(_, i) => i.toString()}
+            data={rows}
+            keyExtractor={(row) => row.key}
             ItemSeparatorComponent={() => <View className="h-4" />}
+            ListHeaderComponent={
+              <ContactsStatus status={status} onRetry={() => void retry()} />
+            }
             renderItem={({ item, index }) => {
-              const curr = item.displayName?.[0];
-              const prev = contacts[index - 1]?.displayName?.[0];
+              const curr = rowName(item)?.[0];
+              const prev = index > 0 ? rowName(rows[index - 1])?.[0] : undefined;
 
               const isValidAlphabet = isAlphabet(curr);
               const hasSectionHeader =
@@ -152,27 +124,48 @@ export function ContactListModal(props: ContactListModalProps) {
                 (!isValidAlphabet && isAlphabet(prev)) ||
                 (isValidAlphabet && curr !== prev);
 
-              // @ts-ignore
-              const isUser = searchedContact.includes(item);
-              // @ts-ignore
-              const avatarUrl = isUser ? item.avatarUrl : undefined;
               return (
                 <View>
                   {searchQuery === "" && hasSectionHeader && (
                     <SectionHeader text={isValidAlphabet ? curr : "#"} />
                   )}
-                  <ContactCard
-                    item={item}
-                    isUser={isUser}
-                    avatarUrl={avatarUrl}
-                    onClose={onClose}
-                  />
+                  <ContactCard row={item} onClose={onClose} />
                 </View>
               );
             }}
           />
         </View>
       </AppFullScreenModal>
+    </View>
+  );
+}
+
+function ContactsStatus({
+  status,
+  onRetry,
+}: {
+  status: ContactMatchStatus;
+  onRetry: () => void;
+}) {
+  if (status === "ready") return null;
+  if (status === "loading") {
+    return <ActivityIndicator className="py-4" />;
+  }
+
+  return (
+    <View className="mx-6 mb-4 gap-2 items-center">
+      <AppText variant="body-sm-regular" color="subtext" className="text-center">
+        {status === "denied"
+          ? "Allow access to contacts in Settings to find friends on ChatMe."
+          : "Some contacts couldn't be checked."}
+      </AppText>
+      {status === "error" && (
+        <Pressable onPress={onRetry} accessibilityRole="button">
+          <AppText variant="body-sm-medium" color="primary">
+            Try again
+          </AppText>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -186,45 +179,26 @@ function SectionHeader({ text }: { text?: string }) {
 }
 
 function ContactCard({
-  item,
-  isUser,
-  avatarUrl,
+  row,
   onClose,
 }: {
-  item: AppContact | ConversationUser;
-  isUser?: boolean;
-  avatarUrl?: string;
+  row: ContactRow;
   onClose?: () => void;
 }) {
   const subtextColor = useThemeColor("subtext");
-  const buildInitials = () => {
-    return (item.displayName ?? "")
-      .split(" ")
-      .map((name) => name.charAt(0).toUpperCase())
-      .join("");
-  };
+  const isUser = row.kind === "user";
+  const name = rowName(row);
+  const avatarUrl = isUser ? row.user.avatarUrl : null;
+  const initials = name
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
   const createDirectConversationMutation = useCreateDirectConversation();
-  const joinConversation = (
-    userId: string,
-    options?: { onSuccess?: (data: any) => void },
-  ) => {
+  const startChat = (userId: string) => {
     createDirectConversationMutation.mutate(userId, {
-      onSuccess: (data) => {
-        const otherUser = data.type === "direct" ? data.otherParticipant : null;
-        router.push({
-          // @ts-ignore
-          pathname: `/chat/${data.id}`,
-          params: {
-            activeAt: data.lastActivityAt ?? "",
-            participantId: otherUser?.id ?? "",
-            displayName: encodeURIComponent(
-              otherUser?.displayName ?? "",
-            ),
-            profileUrl: encodeURIComponent(
-              otherUser?.avatarUrl ?? "",
-            ),
-          },
-        });
+      onSuccess: (conversation) => {
+        openConversation(conversation);
         onClose?.();
       },
     });
@@ -233,12 +207,15 @@ function ContactCard({
   return (
     <Pressable
       className="flex-row gap-4 mx-6 items-center"
-      onPress={isUser ? () => joinConversation(item.id) : undefined}
+      onPress={isUser ? () => startChat(row.user.id) : undefined}
+      disabled={!isUser || createDirectConversationMutation.isPending}
+      accessibilityRole={isUser ? "button" : undefined}
+      accessibilityLabel={isUser ? `Chat with ${name}` : undefined}
     >
       <View className="size-14 rounded-full bg-muted items-center justify-center">
-        {!isUser || !avatarUrl ? (
+        {!avatarUrl ? (
           <AppText variant="body-sm-regular" color="subtext">
-            {buildInitials()}
+            {initials}
           </AppText>
         ) : (
           <Image
@@ -248,10 +225,10 @@ function ContactCard({
         )}
       </View>
       <View className="flex-1">
-        <AppText>{item.displayName}</AppText>
+        <AppText>{name}</AppText>
         {!isUser && (
           <AppText variant="body-sm-regular" color="subtext">
-            {(item as AppContact).phoneNumber}
+            {row.contact.phoneNumber}
           </AppText>
         )}
       </View>
@@ -281,16 +258,4 @@ function AddContactButton() {
 
 function isAlphabet(char?: string): boolean {
   return /^[a-zA-Z]$/.test(char ?? "");
-}
-
-function UserSearchResult({ users }: { users: ConversationUser[] }) {
-  return (
-    <View>
-      <AppText>People</AppText>
-      <FlatList
-        data={users}
-        renderItem={({ item }) => <ContactCard item={item} />}
-      />
-    </View>
-  );
 }

@@ -1,5 +1,4 @@
 import { AppText } from "@components";
-import { log } from "@core/logging";
 import { SolidBackspaceSvg } from "@shared/components/svgs/icons";
 import { ReactNode, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -9,7 +8,6 @@ export function PinCode() {
   const [pin, setPin] = useState("");
   const count = 4;
 
-  log.info(pin);
   return (
     <View className="flex-1 justify-end gap-[102] mt-8">
       <PinCodeEntry count={count} enabled={enabled} />

@@ -1,8 +1,10 @@
 import { AppText, AppView, useRealtime } from "@components";
-import { ConversationService } from "@services/conversation";
 import { OutlineCheveronLeftSvg } from "@shared/components/svgs/icons";
 import { useThemeColor } from "@shared/hooks/use-theme-color";
-import { useArchivedConversations } from "../query";
+import { useArchivedConversations, useConversationRemoval } from "../query";
+import { confirmConversationRemoval } from "../components/confirm-conversation-removal";
+import { runBulk } from "../utils/run-bulk";
+import { BulkActionLabel, showBulkOutcome } from "../components/bulk-outcome-toast";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
@@ -14,14 +16,14 @@ export default function ArchivedChatsScreen() {
 
   const {
     archivedQuery,
-    archivedConversations: conversations,
+    archivedConversations: conversations = [],
     unarchiveMutation,
     pinMutation,
     unpinMutation,
     muteMutation,
     unmuteMutation,
-    deleteMutation,
   } = useArchivedConversations();
+  const removalMutation = useConversationRemoval();
   const { refetch } = archivedQuery;
 
   useEffect(() => {
@@ -44,39 +46,26 @@ export default function ArchivedChatsScreen() {
     );
   };
 
-  const handleClearSelection = () => {
-    setSelectedIds([]);
+  const runBulkAction = async (
+    ids: string[],
+    mutateAsync: (id: string) => Promise<unknown>,
+    label: BulkActionLabel,
+  ) => {
+    const result = await runBulk(ids, (id) => mutateAsync(id));
+    setSelectedIds((prev) => (prev.length > 0 ? result.failed : prev));
+    showBulkOutcome(result, label);
   };
 
-  const unarchiveMutate = (ids: string[]) => {
-    ids.forEach((id) => unarchiveMutation.mutate(id));
-    handleClearSelection();
-  };
-
-  const pinMutate = (ids: string[]) => {
-    ids.forEach((id) => pinMutation.mutate(id));
-    handleClearSelection();
-  };
-
-  const unpinMutate = (ids: string[]) => {
-    ids.forEach((id) => unpinMutation.mutate(id));
-    handleClearSelection();
-  };
-
-  const muteMutate = (ids: string[]) => {
-    ids.forEach((id) => muteMutation.mutate(id));
-    handleClearSelection();
-  };
-
-  const unmuteMutate = (ids: string[]) => {
-    ids.forEach((id) => unmuteMutation.mutate(id));
-    handleClearSelection();
-  };
-
-  const deleteMutate = (ids: string[]) => {
-    ids.forEach((id) => deleteMutation.mutate(id));
-    handleClearSelection();
-  };
+  const unarchiveMutate = (ids: string[]) =>
+    runBulkAction(ids, unarchiveMutation.mutateAsync, { verb: "unarchive", past: "unarchived" });
+  const pinMutate = (ids: string[]) =>
+    runBulkAction(ids, pinMutation.mutateAsync, { verb: "pin", past: "pinned" });
+  const unpinMutate = (ids: string[]) =>
+    runBulkAction(ids, unpinMutation.mutateAsync, { verb: "unpin", past: "unpinned" });
+  const muteMutate = (ids: string[]) =>
+    runBulkAction(ids, muteMutation.mutateAsync, { verb: "mute", past: "muted" });
+  const unmuteMutate = (ids: string[]) =>
+    runBulkAction(ids, unmuteMutation.mutateAsync, { verb: "unmute", past: "unmuted" });
 
   const handleUnarchive = (conversationId?: string) => {
     const ids = conversationId ? [conversationId] : selectedIds;
@@ -102,7 +91,8 @@ export default function ArchivedChatsScreen() {
   };
 
   const handleDelete = (conversationId: string) => {
-    deleteMutate([conversationId]);
+    const target = conversations.find((c) => c.id === conversationId);
+    if (target) confirmConversationRemoval([target], removalMutation.mutateAsync);
   };
 
   const onPrimaryColor = useThemeColor("primary-foreground");

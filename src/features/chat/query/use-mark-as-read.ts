@@ -1,3 +1,4 @@
+import { queryKeys } from "@core/query/keys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
 
@@ -9,10 +10,10 @@ export function useMarkAllAsRead() {
       ConversationService.markAllConversationMessagesAsRead(conversationId),
     onSuccess: (_, conversationId) => {
       void queryClient.invalidateQueries({
-        queryKey: ["conversationMessages", conversationId],
+        queryKey: queryKeys.messages(conversationId),
       });
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      void queryClient.invalidateQueries({ queryKey: ["archivedConversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.archivedConversations });
     },
   });
 }

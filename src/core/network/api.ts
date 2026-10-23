@@ -1,7 +1,6 @@
 import { AppConfig } from "@core/config";
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { log } from "@logging";
-import { VerifyPhoneVerificationResponse } from "@shared/types/api";
+import { log, redact } from "@logging";
 import { TokenManager } from "@services/token-manager";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
@@ -10,18 +9,28 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 
 export const apiClient = axios.create({
   baseURL: AppConfig.apiBaseUrl,
+  timeout: 15_000,
 });
 
 const publicEndpoints = [
-  "/auth/refresh",
-  "/auth/otp/request",
-  "/auth/otp/verify",
-  "/auth/logout",
+  "auth/refresh",
+  "auth/otp/request",
+  "auth/otp/verify",
+  "auth/otp/resend",
+  "auth/logout",
 ];
+
+const normalizePath = (url?: string) => (url ?? "").replace(/^\/+/, "");
+
+const isPublicEndpoint = (url?: string) =>
+  publicEndpoints.includes(normalizePath(url));
+
+const describe = (config?: InternalAxiosRequestConfig) =>
+  `${config?.method?.toUpperCase() ?? ""} /${normalizePath(config?.url)}`;
 
 apiClient.interceptors.request.use(
   (config) => {
-    if (!publicEndpoints.includes(config.url ?? "")) {
+    if (!isPublicEndpoint(config.url)) {
       const accessToken = TokenManager.getAccessToken();
 
       if (accessToken) {
@@ -29,41 +38,30 @@ apiClient.interceptors.request.use(
       }
     }
 
-    log.debug("→ HTTP REQUEST", {
-      method: config.method?.toUpperCase(),
-      url: `${config.baseURL ?? ""}/${config.url ?? ""}`,
-      params: config.params,
-      data: config.data,
-    });
+    if (__DEV__) {
+      log.debug(`→ ${describe(config)}`, redact({ params: config.params, data: config.data }));
+    }
 
     return config;
   },
 
   (error) => {
-    log.error("→ HTTP REQUEST ERROR", error);
+    log.error("→ HTTP REQUEST ERROR", error?.message);
     return Promise.reject(error);
   },
 );
 
 apiClient.interceptors.response.use(
   (response) => {
-    log.debug("← HTTP RESPONSE", {
-      status: response.status,
-      method: response.config.method?.toUpperCase(),
-      url: `${response.config.baseURL ?? ""}${response.config.url ?? ""}`,
-      data: response.data,
-    });
+    log.debug(`← ${response.status} ${describe(response.config)}`);
 
     return response;
   },
 
   async (error: AxiosError) => {
-    log.error("← HTTP RESPONSE ERROR", {
-      status: error.response?.status,
-      method: error.config?.method?.toUpperCase(),
-      url: `${error.config?.baseURL ?? ""}${error.config?.url ?? ""}`,
-      data: error.response?.data,
+    log.error(`← ${error.response?.status ?? "NETWORK"} ${describe(error.config)}`, {
       message: error.message,
+      data: __DEV__ ? redact(error.response?.data) : undefined,
     });
 
     if (error.response?.status !== 401) {
@@ -71,12 +69,11 @@ apiClient.interceptors.response.use(
     }
 
     const originalRequest = error.config as RetryableRequestConfig;
-    log.debug(originalRequest);
 
     if (originalRequest._retry) {
       log.warn("Request failed with 401 after token refresh");
 
-      TokenManager.clearTokens();
+      await TokenManager.clearTokens().catch(() => undefined);
       return Promise.reject(error);
     }
 
@@ -89,7 +86,7 @@ apiClient.interceptors.response.use(
       }
       return Promise.reject(error);
     } catch (refreshError) {
-      log.error("→ TOKEN REFRESH ERROR", refreshError);
+      log.error("→ TOKEN REFRESH ERROR", (refreshError as Error)?.message);
       return Promise.reject(refreshError);
     }
   },

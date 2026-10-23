@@ -14,6 +14,8 @@ import { log } from "@core/logging";
 import { ConversationService } from "@services/conversation";
 import { AppConfig } from "@core/config";
 
+const RETRY_DELAY_MS = 5_000;
+
 export type RealtimeStatus =
   "connecting" | "connected" | "reconnecting" | "disconnected";
 
@@ -34,22 +36,32 @@ export function AppRealtimeProvider({
   children,
   enabled = true,
 }: RealtimeProviderProps) {
-  const accessToken = TokenManager.getAccessToken();
   const { user } = useAuth();
+  const userId = user?.id;
+  // Subscribed, so the socket is created/destroyed when a session starts or ends.
+  // Refreshed tokens are read at handshake time via the `auth` callback instead.
+  const [hasToken, setHasToken] = useState(() =>
+    Boolean(TokenManager.getAccessToken()),
+  );
+  useEffect(
+    () => TokenManager.subscribe((tokens) => setHasToken(Boolean(tokens.accessToken))),
+    [],
+  );
   const [socket, setSocket] = useState<ChatSocket | null>(null);
   const [status, setStatus] = useState<RealtimeStatus>("disconnected");
   const [activityVersion, setActivityVersion] = useState(0);
   const [reconcileVersion, setReconcileVersion] = useState(0);
 
   useEffect(() => {
-    if (!enabled || !accessToken) {
+    if (!enabled || !hasToken || !userId) {
       setSocket(null);
       setStatus("disconnected");
       return;
     }
 
     const next = io(AppConfig.socketUrl, {
-      auth: { token: accessToken },
+      // Evaluated on every (re)connection attempt, so it always sends the current token.
+      auth: (cb) => cb({ token: TokenManager.getAccessToken() }),
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -63,7 +75,23 @@ export function AppRealtimeProvider({
     setSocket(next);
     setStatus("connecting");
 
-    log.debug(status);
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // socket.io does not reconnect by itself after a server disconnect or an auth
+    // rejection, so refresh the shared token and reconnect explicitly.
+    const reconnectWithFreshToken = async () => {
+      try {
+        const tokens = await TokenManager.refreshToken();
+        // `undefined` means the credentials were rejected and the session is ending.
+        if (tokens && !disposed) next.connect();
+      } catch {
+        if (!disposed) {
+          retryTimer = setTimeout(() => void reconnectWithFreshToken(), RETRY_DELAY_MS);
+        }
+      }
+    };
+
     const onConnect = () => {
       log.debug("connected to socket");
       setStatus("connected");
@@ -73,15 +101,15 @@ export function AppRealtimeProvider({
       log.debug("disconnected from socket", { reason });
       setStatus("disconnected");
       if (reason === "io server disconnect") {
-        void TokenManager.refreshToken().catch(() => undefined);
+        void reconnectWithFreshToken();
       }
     };
     const onReconnectAttempt = () => setStatus("reconnecting");
     const onConnectError = (error: Error & { data?: { code?: string } }) => {
-      log.debug("disconnected from socket", { error });
+      log.warn("socket connect error", error?.message);
       setStatus("disconnected");
       if (error.data?.code === "AUTH_ACCESS_TOKEN_INVALID") {
-        void TokenManager.refreshToken().catch(() => undefined);
+        void reconnectWithFreshToken();
       }
     };
     const bumpActivity = () => setActivityVersion((value) => value + 1);
@@ -107,7 +135,7 @@ export function AppRealtimeProvider({
       senderId: string;
     }) => {
       bumpActivity();
-      if (message.senderId !== user?.id) {
+      if (message.senderId !== userId) {
         pendingDeliveries.set(message.conversationId, message);
         if (!deliveryTimer) deliveryTimer = setTimeout(flushDeliveries, 150);
       }
@@ -121,18 +149,20 @@ export function AppRealtimeProvider({
     next.on("message.created", onMessage);
     next.on("receipt.delivered", bumpActivity);
     next.on("receipt.read", bumpActivity);
-    next.onAny((event, ...args) => {
-      log.info(`socket event: ${event}`, ...args);
+    next.onAny((event) => {
+      log.debug(`socket event: ${event}`);
     });
 
     return () => {
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
       if (deliveryTimer) clearTimeout(deliveryTimer);
       next.removeAllListeners();
       next.io.removeAllListeners();
       next.disconnect();
       setSocket((current) => (current === next ? null : current));
     };
-  }, [enabled, accessToken, user]);
+  }, [enabled, hasToken, userId]);
 
   const value = useMemo<RealtimeContextValue>(
     () => ({ socket, status, activityVersion, reconcileVersion }),

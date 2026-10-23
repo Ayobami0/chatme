@@ -1,3 +1,4 @@
+import { queryKeys } from "@core/query/keys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConversationService } from "@services/conversation";
 import { CreateGroupConversationDto } from "@shared/types/api";
@@ -9,7 +10,7 @@ export function useCreateGroup() {
     mutationFn: (payload: CreateGroupConversationDto) =>
       ConversationService.createGroupConversation(payload),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });
 }
@@ -21,7 +22,7 @@ export function useJoinConversation() {
     mutationFn: ({ conversationId, participantIds }: { conversationId: string; participantIds: string[] }) =>
       ConversationService.addGroupMembers(conversationId, { participantIds }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });
 }
@@ -32,7 +33,7 @@ export function useCreateDirectConversation() {
   return useMutation({
     mutationFn: ConversationService.createOrUpdateConversation,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });
 }
@@ -49,9 +50,9 @@ export function useUpdateGroupConversation() {
       data: { name?: string; avatarMediaId?: string | null };
     }) => ConversationService.updateGroupConversation(conversationId, data),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
       void queryClient.invalidateQueries({
-        queryKey: ["conversation", variables.conversationId],
+        queryKey: queryKeys.conversation(variables.conversationId),
       });
     },
   });
@@ -69,9 +70,9 @@ export function useSetGroupAvatar() {
       mediaId: string;
     }) => ConversationService.setGroupAvatar(conversationId, { mediaId }),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
       void queryClient.invalidateQueries({
-        queryKey: ["conversation", variables.conversationId],
+        queryKey: queryKeys.conversation(variables.conversationId),
       });
     },
   });

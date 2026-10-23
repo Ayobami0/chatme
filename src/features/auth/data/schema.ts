@@ -8,9 +8,13 @@ export const phoneNumberSchema = z.object({
     )
 });
 
-export const otpSchema = z.object({
-  otp: z.string().regex(/^\d{4}$/),
-});
+export const DEFAULT_OTP_LENGTH = 4;
+
+/** Validates an OTP of the length the server issued for the current challenge. */
+export const createOtpSchema = (codeLength = DEFAULT_OTP_LENGTH) =>
+  z.object({
+    otp: z.string().regex(new RegExp(`^\\d{${codeLength}}$`)),
+  });
 
 export const fullNameSchema = z.object({
   fullName: z.string()

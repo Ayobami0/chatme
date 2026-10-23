@@ -53,7 +53,8 @@ import {
   TypingChatBubble,
 } from "../components/chat-bubble";
 import { useAuth } from "@shared/context/auth-context";
-import { useCacheStore } from "@shared/store/cache";
+import { useQueryClient } from "@tanstack/react-query";
+import { applyMessages } from "../query/message-cache";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Crypto from "expo-crypto";
 import {
@@ -73,6 +74,8 @@ import {
   AllowedContentType,
   getContentTypeFromAsset,
 } from "@shared/utils/file-types";
+
+const NO_MESSAGES: MessageModel[] = [];
 
 type ChatScreenProps = {
   conversationId: string;
@@ -96,15 +99,7 @@ export default function ChatScreen(props: ChatScreenProps) {
   const [otherPaticipantTyping, setOtherPaticipantTyping] = useState(false);
   const bgSvgColor = useThemeColor("muted");
 
-  const loadMessagesForConversation = useCacheStore(
-    (s) => s.loadMessagesForConversation,
-  );
-  const setCacheMessages = useCacheStore((s) => s.setMessages);
-  const addOrUpdateMessage = useCacheStore((s) => s.addOrUpdateMessage);
-  const cachedMessages = useCacheStore(
-    (s) => s.messagesByConversation[conversationId],
-  );
-
+  const queryClient = useQueryClient();
   const { data, isFetching } = useConversationMessages(conversationId);
   const conversationQuery = useConversationDetails(conversationId);
   const { data: conversation, refetch: refetchConversation } =
@@ -130,21 +125,17 @@ export default function ChatScreen(props: ChatScreenProps) {
   });
 
   useEffect(() => {
-    void loadMessagesForConversation(conversationId);
     markAllAsRead(conversationId);
-    requestAnimationFrame(() =>
-      scrollRef.current?.scrollToEnd({ animated: true }),
-    );
-  }, [conversationId, loadMessagesForConversation, markAllAsRead]);
+  }, [conversationId, markAllAsRead]);
 
+  const messageCount = data?.length ?? 0;
   useEffect(() => {
-    if (data) {
-      setCacheMessages(conversationId, data);
+    if (messageCount > 0) {
       requestAnimationFrame(() =>
         scrollRef.current?.scrollToEnd({ animated: true }),
       );
     }
-  }, [data, conversationId, setCacheMessages]);
+  }, [messageCount]);
 
   const [receiptsList, setReceiptsList] = useState<
     Array<{
@@ -189,11 +180,9 @@ export default function ChatScreen(props: ChatScreenProps) {
 
     const onMessage = (message: MessageModel) => {
       if (message.conversationId !== conversationId) return;
-      if (message.senderId === user?.id) return;
-      addOrUpdateMessage(conversationId, message);
-      requestAnimationFrame(() =>
-        scrollRef.current?.scrollToEnd({ animated: true }),
-      );
+      // Own messages are applied too: if a send's HTTP response is lost, the socket
+      // event still reconciles the pending message via its clientMessageId.
+      applyMessages(queryClient, conversationId, [message]);
     };
     const onReceipt = (event: ReceiptUpdatedEventPayload) => {
       if (event.conversationId !== conversationId) return;
@@ -279,11 +268,17 @@ export default function ChatScreen(props: ChatScreenProps) {
     socket,
     conversationId,
     participantId,
-    addOrUpdateMessage,
-    user?.id,
+    queryClient,
   ]);
 
-  const messages = cachedMessages ?? [];
+  const messages = data ?? NO_MESSAGES;
+  // A pending/failed send that the server has already accepted is shown once, as the real message.
+  const unconfirmed = (records: Record<string, MessageModel>) =>
+    Object.fromEntries(
+      Object.entries(records).filter(
+        ([clientId]) => !messages.some((m) => m.clientMessageId === clientId),
+      ),
+    );
 
   const showOtherTypingUntil = useCallback((expiresAt: string) => {
     if (typingExpiryRef.current) clearTimeout(typingExpiryRef.current);
@@ -314,7 +309,6 @@ export default function ChatScreen(props: ChatScreenProps) {
         contentType: a.contentType,
       }));
     }
-    console.log("Converted attachments", convertedAttachments);
     const message: MessageModel = {
       id,
       conversationId: conversationId,
@@ -339,7 +333,7 @@ export default function ChatScreen(props: ChatScreenProps) {
 
       const ids = data?.map((d) => d?.id);
 
-      const d = await mutateAsync({
+      await mutateAsync({
         text,
         id,
         attachmentMediaIds: kind !== "text" ? ids : undefined,
@@ -348,8 +342,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         const { [id]: _removed, ...rest } = m;
         return rest;
       });
-      addOrUpdateMessage(conversationId, d);
-    } catch (e) {
+    } catch {
       setPendingMessages((m) => {
         const { [id]: _removed, ...rest } = m;
         return rest;
@@ -382,8 +375,8 @@ export default function ChatScreen(props: ChatScreenProps) {
       {isFetching && <AppLinearProgressIndicator />}
       <ChatBody
         messages={messages}
-        failedMessages={failedMessages}
-        pendingMessages={pendingMessages}
+        failedMessages={unconfirmed(failedMessages)}
+        pendingMessages={unconfirmed(pendingMessages)}
         receiptsList={receiptsList}
         typing={otherPaticipantTyping}
         ref={scrollRef}
@@ -662,12 +655,23 @@ function ChatFooter(props: {
   onFocus?: () => void;
 }) {
   const [text, setText] = useState("");
-  const inputRef = useRef<TextInput>(null);
   const clipIconColor = useThemeColor("subtext");
   const sendIconColor = useThemeColor("primary-foreground");
   const placeholderColor = useThemeColor("placeholder");
   const [showMediaSelection, setShowMediaSelection] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const canSend = text.trim().length > 0 || attachments.length > 0;
+
+  const send = () => {
+    if (!canSend) return;
+    props.onSend(
+      text.trim(),
+      attachments.length > 0 ? "image" : "text",
+      attachments,
+    );
+    setText("");
+    setAttachments([]);
+  };
 
   return (
     <View className="gap-2">
@@ -742,32 +746,29 @@ function ChatFooter(props: {
           onPress={() => {
             setShowMediaSelection(!showMediaSelection);
           }}
-          className="rounded-full size-10 items-center justify-center bg-surface bg-"
+          className="rounded-full size-10 items-center justify-center bg-surface"
+          accessibilityRole="button"
+          accessibilityLabel="Add attachment"
+          accessibilityState={{ expanded: showMediaSelection }}
         >
           <OutlinePaperClipSvg width={24} height={24} color={clipIconColor} />
         </Pressable>
         <TextInput
           onFocus={props.onFocus}
-          ref={inputRef}
           className="flex-1 text-title"
+          value={text}
           onChangeText={setText}
+          accessibilityLabel="Message"
           placeholder="Start typing..."
           placeholderTextColor={placeholderColor}
         />
         <Pressable
-          className="size-10 rounded-full bg-primary items-center justify-center"
-          onPress={() => {
-            if (text.trim() || attachments.length > 0) {
-              props.onSend(
-                text,
-                attachments.length > 0 ? "image" : "text",
-                attachments,
-              );
-              inputRef.current?.clear();
-              setText("");
-              setAttachments([]);
-            }
-          }}
+          className={`size-10 rounded-full bg-primary items-center justify-center ${canSend ? "" : "opacity-50"}`}
+          disabled={!canSend}
+          onPress={send}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          accessibilityState={{ disabled: !canSend }}
         >
           <SolidPaperAirplaneSvg color={sendIconColor} />
         </Pressable>
