@@ -9,23 +9,21 @@ import * as Crypto from "expo-crypto";
 
 export interface UploadMediaInput {
   uri: string;
-  purpose?: MediaPurpose;
-  contentType?: string;
-  originalFilename?: string;
-  sizeBytes?: number;
+  purpose: MediaPurpose;
+  contentType: string;
+  originalFilename: string;
+  sizeBytes: number;
+  /** Keep the same id when retrying an upload so the server can deduplicate it. */
+  clientUploadId?: string;
 }
 
 export class MediaService {
   static async createUpload(
     data: CreateMediaUploadDto,
   ): Promise<CreateMediaUploadResponseDto> {
-    const payload = {
-      ...data,
-      clientUploadId: data.clientUploadId,
-    };
     const response = await apiClient.post<CreateMediaUploadResponseDto>(
       "/media/uploads",
-      payload,
+      data,
     );
     return response.data;
   }
@@ -42,23 +40,11 @@ export class MediaService {
   static async uploadMedia(
     input: UploadMediaInput,
   ): Promise<MediaAssetResponseDto> {
-    const uri = input.uri;
-    const originalFilename =
-      input.originalFilename || uri.split("/").pop() || "upload.jpg";
-
-    let contentType = input.contentType;
-    if (!contentType) {
-      const ext = originalFilename.split(".").pop()?.toLowerCase();
-      if (ext === "png") contentType = "image/png";
-      else if (ext === "webp") contentType = "image/webp";
-      else if (ext === "gif") contentType = "image/gif";
-      else if (ext === "heic") contentType = "image/heic";
-      else contentType = "image/jpeg";
+    const { uri, purpose, contentType, originalFilename, sizeBytes } = input;
+    if (!uri || !contentType || !originalFilename || !(sizeBytes > 0)) {
+      throw new Error("Upload requires the file's URI, content type, name and size");
     }
-
-    const clientUploadId = Crypto.randomUUID();
-    const purpose = input.purpose || "profile_avatar";
-    const sizeBytes = input.sizeBytes || 1;
+    const clientUploadId = input.clientUploadId ?? Crypto.randomUUID();
 
     // 1. Initiate upload with backend
     const { media, upload } = await this.createUpload({
@@ -84,7 +70,7 @@ export class MediaService {
         uri,
         name: originalFilename,
         type: contentType,
-      } as any);
+      } as unknown as Blob);
 
       const response = await fetch(upload.url, {
         method: upload.method || "POST",

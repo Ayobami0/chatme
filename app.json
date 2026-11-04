@@ -83,7 +83,17 @@
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photo library to choose and view media.",
           "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos and videos to your device.",
           "isAccessMediaLocationEnabled": true,
-          "granularPermissions": ["audio", "photo"]
+          "granularPermissions": [
+            "audio",
+            "photo"
+          ]
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#57B77D",
+          "defaultChannel": "messages"
         }
       ]
     ],

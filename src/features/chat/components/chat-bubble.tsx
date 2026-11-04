@@ -11,7 +11,7 @@ import { useThemeColor } from "@shared/hooks/use-theme-color";
 import { MessageModel } from "@shared/types/models";
 import { formatMessageTime } from "@shared/utils/datetime";
 import { Image } from "expo-image";
-import { FlatList, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 export type MessageState =
   "pending" | "sent" | "success" | "delivered" | "read" | "viewed" | "error";
@@ -24,10 +24,22 @@ type ChatBubbleProps = {
     displayName?: string | null;
     avatarUrl?: string | null;
   };
+  /** Shown for failed sends; tapping the bubble invokes it. */
+  onFailedPress?: () => void;
+};
+
+const STATE_LABELS: Record<MessageState, string> = {
+  pending: "Sending",
+  sent: "Sent",
+  success: "Sent",
+  delivered: "Delivered",
+  read: "Read",
+  viewed: "Read",
+  error: "Not sent. Double tap for options",
 };
 
 export function ChatBubble(props: ChatBubbleProps) {
-  const { message, state, forGroup = false, sender } = props;
+  const { message, state, forGroup = false, sender, onFailedPress } = props;
   const formatedDate = formatMessageTime(new Date(message.createdAt));
   const { user } = useAuth();
   const isMine = message.senderId === user?.id;
@@ -68,8 +80,23 @@ export function ChatBubble(props: ChatBubbleProps) {
 
   const hasAttachments = message.attachments && message.attachments.length > 0;
 
+  const isFailed = state === "error" && Boolean(onFailedPress);
+  const accessibilityLabel = [
+    showGroupSender ? effectiveSenderName : isMine ? "You" : undefined,
+    message.text ?? (hasAttachments ? "Photo" : undefined),
+    formatedDate,
+    isMine ? STATE_LABELS[state] : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
-    <View
+    <Pressable
+      disabled={!isFailed}
+      onPress={onFailedPress}
+      accessible
+      accessibilityRole={isFailed ? "button" : undefined}
+      accessibilityLabel={accessibilityLabel}
       className={`flex-row items-end mx-6 gap-2.5 ${isMine ? "justify-end" : "justify-start"}`}
     >
       {showGroupSender && (
@@ -111,9 +138,14 @@ export function ChatBubble(props: ChatBubbleProps) {
             {formatedDate}
           </AppText>
           {isMine && <StateIcon />}
+          {isFailed && (
+            <AppText variant="body-sm-medium" color="danger" size={12}>
+              {" "}Not sent · Tap to retry
+            </AppText>
+          )}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

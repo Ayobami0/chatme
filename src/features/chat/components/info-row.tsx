@@ -31,7 +31,16 @@ export function Row({
     (colorScheme === "dark" ? AppColor.whiteOther : AppColor.neutral600);
 
   return (
-    <Pressable className="flex flex-row py-3 items-center gap-3" onPress={onGo}>
+    <Pressable
+      className="flex flex-row py-3 items-center gap-3"
+      onPress={onGo}
+      disabled={!onGo}
+      // Only actionable rows are a single focus target; otherwise controls inside
+      // (e.g. a Switch) stay individually reachable by screen readers.
+      accessible={Boolean(onGo)}
+      accessibilityRole={onGo ? "button" : undefined}
+      accessibilityLabel={onGo ? label : undefined}
+    >
       <Icon height={24} width={24} color={resolvedIconColor} />
       <AppText variant="body-lg-medium" style={{ color: resolvedTextColor }}>
         {label}

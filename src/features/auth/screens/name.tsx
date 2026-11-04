@@ -14,23 +14,24 @@ import { useForm } from "@tanstack/react-form";
 import { useUpdateProfile } from "../query";
 import { SolidUserSvg } from "@shared/components/svgs/icons";
 import { router } from "expo-router";
-import StorageService, { StorageKey } from "@services/storage";
 import { useAuth } from "@shared/context/auth-context";
 
 export default function ProfileNameScreen() {
   const { setStage } = useAuthFlowStore();
   const { mutate, isPending } = useUpdateProfile();
-  const { setUser } = useAuth();
+  const { setUser, setProfileFlowStage } = useAuth();
 
   const submit = async (value: z.infer<typeof fullNameSchema>) => {
     mutate(
       { displayName: value.fullName },
       {
         onSuccess: async (user) => {
+          // Record the photo step first so the guard keeps profile setup open
+          // even if the server now considers the profile complete.
+          await setProfileFlowStage("image");
           setUser(user);
-          await StorageService.save(StorageKey.ProfileFlowStage, "image");
-          router.push("/profile-image");
           setStage("image");
+          router.replace("/profile-image");
         },
         onError: () => {
           toast.show({

@@ -3,7 +3,6 @@ import { AppText, AppView, useRealtime } from "@components";
 import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
 import { ChatsHeader } from "../components/chats-header";
 import { useEffect, useState } from "react";
-import { PinCodeModal } from "../components/pin-code-modal";
 import { FABOptionModal } from "../components/fab-option-modal";
 import { FloatingActionButton } from "../components/fab";
 import { ContactListModal } from "../components/contact-list-modal";
@@ -25,14 +24,12 @@ import {
   SolidVolumeUp1Svg,
 } from "@shared/components/svgs/icons";
 import { useQueryClient } from "@tanstack/react-query";
-import StorageService, { StorageKey } from "@services/storage";
 import { ConversationModel } from "@shared/types/models";
 
 const NO_CONVERSATIONS: ConversationModel[] = [];
 
 export default function ChatsScreen() {
   const queryClient = useQueryClient();
-  const [pinModalVisible, setPinModalVisible] = useState(false);
   const [showFabOptions, setShowFabOptions] = useState(false);
   const [showContactList, setShowContactList] = useState(false);
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
@@ -58,16 +55,6 @@ export default function ChatsScreen() {
 
   const { socket, status, activityVersion, reconcileVersion } = useRealtime();
 
-  useEffect(() => {
-    void (async () => {
-      const hasSeenPinPrompt = await StorageService.get<boolean>(
-        StorageKey.HasSeenPinPrompt,
-      );
-      if (!hasSeenPinPrompt) {
-        setPinModalVisible(true);
-      }
-    })();
-  }, []);
 
   useEffect(() => {
     if (!socket || status !== "connected") return;
@@ -338,15 +325,6 @@ export default function ChatsScreen() {
             } else if (action === "new-group") {
               setShowNewGroupModal(true);
             }
-          }}
-        />
-      )}
-      {pinModalVisible && (
-        <PinCodeModal
-          isVisible={pinModalVisible}
-          onClose={async () => {
-            setPinModalVisible(false);
-            await StorageService.save(StorageKey.HasSeenPinPrompt, true);
           }}
         />
       )}

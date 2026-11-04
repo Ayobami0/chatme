@@ -11,7 +11,7 @@ import {
 } from "expo-media-library";
 
 export type AppMediaUploadProps = {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   showRecentImage?: boolean;
   recentImageCount?: number;
   onRecentImagePicked?: (path?: string, data?: AssetInfo) => void;
@@ -91,7 +91,9 @@ export function AppMediaUpload(props: AppMediaUploadProps) {
           renderItem={({ item, index }) => {
             return (
               <Pressable
-                onPress={() => onRecentImagePicked?.(item.localUri)}
+                onPress={() => onRecentImagePicked?.(item.localUri, item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Recent photo ${index + 1}`}
                 className={`size-16 overflow-hidden rounded-lg ${index === 0 ? "ml-2" : ""} ${index === images.length - 1 ? "mr-2" : ""}`}
               >
                 <Image source={{ uri: item.localUri }} className="size-16" />

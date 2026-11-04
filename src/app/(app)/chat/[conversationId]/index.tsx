@@ -1,38 +1,13 @@
 import { ChatScreen } from "@features/chat/screens";
+import { ConversationNotFound } from "@features/chat/components/conversation-not-found";
+import { parseConversationId } from "@features/chat/navigation";
 import { useLocalSearchParams } from "expo-router";
 
+/** Works from the conversation id alone, e.g. from a deep link or notification. */
 export default function Index() {
-  const {
-    conversationId,
-    activeAt: encodedActiveAt,
-    displayName: encodedDisplayName,
-    profileUrl: encodedProfileUrl,
-    participantId,
-    isGroup,
-  } = useLocalSearchParams<{
-    conversationId: string;
-    displayName: string;
-    activeAt?: string;
-    profileUrl?: string;
-    participantId: string;
-    isGroup: string;
-  }>();
+  const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
+  const id = parseConversationId(conversationId);
 
-  const activeAt = encodedActiveAt ? new Date(encodedActiveAt) : undefined;
-
-  const displayName = decodeURIComponent(encodedDisplayName);
-  const profileUrl = encodedProfileUrl
-    ? decodeURIComponent(encodedProfileUrl)
-    : undefined;
-
-  return (
-    <ChatScreen
-      isGroup={isGroup === "true"}
-      conversationId={conversationId}
-      participantId={participantId}
-      activeAt={activeAt}
-      fullName={displayName}
-      profileUrl={profileUrl}
-    />
-  );
+  if (!id) return <ConversationNotFound />;
+  return <ChatScreen conversationId={id} />;
 }

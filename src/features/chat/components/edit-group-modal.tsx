@@ -38,11 +38,10 @@ export function EditGroupModal({
   const [imageUri, setImageUri] = useState<string | undefined>(
     conversation.avatarUrl ?? undefined,
   );
-  const [hasNewImage, setHasNewImage] = useState(false);
+  const [newImage, setNewImage] = useState<ImagePicker.ImagePickerAsset>();
+  const hasNewImage = Boolean(newImage);
 
-  const { uploadAsync, isPending: isUploading } = useUpload({
-    purpose: "group_avatar",
-  });
+  const { upload, isPending: isUploading } = useUpload("group_avatar");
   const updateGroupMutation = useUpdateGroupConversation();
   const setAvatarMutation = useSetGroupAvatar();
 
@@ -54,7 +53,7 @@ export function EditGroupModal({
       setGroupName(conversation.name);
       setGroupDescription(conversation.description ?? "");
       setImageUri(conversation.avatarUrl ?? undefined);
-      setHasNewImage(false);
+      setNewImage(undefined);
     }
   }, [isVisible, conversation]);
 
@@ -68,7 +67,7 @@ export function EditGroupModal({
 
     if (!result.canceled && result.assets[0]?.uri) {
       setImageUri(result.assets[0].uri);
-      setHasNewImage(true);
+      setNewImage(result.assets[0]);
     }
   };
 
@@ -89,8 +88,8 @@ export function EditGroupModal({
         });
       }
 
-      if (hasNewImage && imageUri) {
-        const uploaded = await uploadAsync({ uri: imageUri });
+      if (newImage) {
+        const uploaded = await upload(newImage);
         if (uploaded?.id) {
           await setAvatarMutation.mutateAsync({
             conversationId: conversation.id,

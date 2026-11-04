@@ -28,11 +28,14 @@ export function AppFullScreenModal(props: AppFullScreenModalProps) {
       animationType={animationType}
       onRequestClose={onClose}
     >
-      <AppBlurView className="flex-1">
+      {/* Keeps screen-reader focus inside the modal while it is open. */}
+      <AppBlurView className="flex-1" accessibilityViewIsModal>
         {closeOnBackdropTap && (
           <Pressable
             className="absolute inset-0"
             onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
           />
         )}
 

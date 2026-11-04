@@ -8,7 +8,11 @@ import React, {
 } from "react";
 import { AppState } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { AppSessionState, StoredAuthTokens } from "@shared/types/authState";
+import {
+  AppSessionState,
+  ProfileFlowStage,
+  StoredAuthTokens,
+} from "@shared/types/authState";
 import { UserModel } from "@shared/types/models";
 import { TokenManager } from "@services/token-manager";
 import { AuthService } from "@services/auth";
@@ -17,6 +21,7 @@ import { endSession } from "@shared/session/end-session";
 import { isCredentialRejection } from "@core/network/errors";
 import { withTimeout } from "@shared/utils/async";
 import { log } from "@logging";
+import { unregisterFromPushNotifications } from "@features/notifications/push-registration";
 
 const LOGOUT_REVOKE_TIMEOUT_MS = 5_000;
 const OFFLINE_RETRY_INTERVAL_MS = 30_000;
@@ -33,6 +38,22 @@ interface AuthContextType extends AppSessionState {
   }) => Promise<void>;
   /** Replaces the signed-in user with a fresh profile from the server. */
   setUser: (user: UserModel) => void;
+  /** Records the next profile-setup step so it survives restarts. */
+  setProfileFlowStage: (stage: ProfileFlowStage) => Promise<void>;
+  /** Ends profile setup; route guards then move the user into the app. */
+  completeProfileSetup: () => Promise<void>;
+}
+
+/** Which route group a session belongs in. Drives the root `Stack.Protected` guards. */
+export type SessionStage = "signed-out" | "profile-setup" | "app";
+
+export function getSessionStage(
+  state: Pick<AppSessionState, "authStatus" | "profileStatus" | "profileFlowStage">,
+): SessionStage {
+  if (state.authStatus !== "authenticated") return "signed-out";
+  // An optional step (the photo) can remain after the server considers the profile complete.
+  const setupPending = state.profileStatus !== "complete" || state.profileFlowStage === "image";
+  return setupPending ? "profile-setup" : "app";
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -77,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           authStatus: "unauthenticated",
           user: undefined,
           profileStatus: "incomplete",
+          profileFlowStage: "unknown",
           offline: false,
           startupFailed: false,
         }));
@@ -168,6 +190,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [shouldRetry, revalidateProfile]);
 
   const logout = async () => {
+    // Unregister while the session can still authenticate the request.
+    await withTimeout(unregisterFromPushNotifications(), LOGOUT_REVOKE_TIMEOUT_MS).catch(
+      (error) => log.warn("Push unregister failed", error?.message),
+    );
+
     const refreshToken = TokenManager.getRefreshToken();
     if (refreshToken) {
       // Best effort: revoke server-side, but never block logout on the network.
@@ -203,6 +230,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const storedTokens = await TokenManager.loadSavedTokens();
+      const profileFlowStage =
+        (await StorageService.get<ProfileFlowStage>(StorageKey.ProfileFlowStage)) ?? "unknown";
+      setSessionState((prev) => ({ ...prev, profileFlowStage }));
 
       if (!storedTokens) {
         setSessionState((prev) => ({
@@ -252,6 +282,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionState((prev) => ({ ...prev, ...profileState(user) }));
   };
 
+  const setProfileFlowStage = async (profileFlowStage: ProfileFlowStage) => {
+    await StorageService.save(StorageKey.ProfileFlowStage, profileFlowStage).catch(() => undefined);
+    setSessionState((prev) => ({ ...prev, profileFlowStage }));
+  };
+
+  const completeProfileSetup = async () => {
+    await StorageService.remove(StorageKey.ProfileFlowStage).catch(() => undefined);
+    setSessionState((prev) => ({ ...prev, profileFlowStage: "unknown" }));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -261,6 +301,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshTokens,
         setAuthState,
         setUser,
+        setProfileFlowStage,
+        completeProfileSetup,
       }}
     >
       {children}

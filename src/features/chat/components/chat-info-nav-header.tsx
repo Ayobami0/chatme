@@ -1,10 +1,6 @@
-import {
-  SolidCheveronLeftSvg,
-  SolidSearchSvg,
-  SolidQrcodeSvg,
-} from "@shared/components/svgs/icons";
+import { SolidCheveronLeftSvg } from "@shared/components/svgs/icons";
 import { TouchableOpacity, View } from "react-native";
-import { router, useRouter } from "expo-router";
+import { router } from "expo-router";
 import { SvgProps } from "react-native-svg";
 import { FC } from "react";
 import { useThemeColor } from "@shared/hooks";
@@ -16,26 +12,33 @@ export function ChatInfoNavHeader() {
       <View className="flex-1 items-start">
         <ChatInfoIcon
           icon={SolidCheveronLeftSvg}
+          label="Back"
           onPress={() => router.back()}
         />
       </View>
-      <ChatInfoIcon icon={SolidSearchSvg} />
-      <ChatInfoIcon icon={SolidQrcodeSvg} />
+      {/* Search and QR code are hidden until they're implemented. */}
     </View>
   );
 }
 
 export function ChatInfoIcon({
   icon,
+  label,
   onPress,
 }: {
   icon: FC<SvgProps>;
+  label: string;
   onPress?: () => void;
 }) {
   const iconColor = useThemeColor("primary-foreground");
   const Component = icon;
   return (
-    <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <BlurView
         className="items-center justify-center size-10 rounded-full overflow-hidden"
         tint="dark"
