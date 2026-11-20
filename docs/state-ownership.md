@@ -9,6 +9,7 @@ Each kind of data has exactly one writable owner. Other layers read from that ow
 | Read receipts | TanStack Query (`queryKeys.receipts(id)`) + screen-local socket updates | Same persister | Query fetches; socket `receipt.*` |
 | Pending / failed sends | `useOutboxStore` (`features/chat/store/outbox.ts`) | AsyncStorage `chat_outbox` | `useMessageSender` / `deliverOutboxEntry`. An entry is removed once a confirmed message carries its `clientMessageId`. |
 | Drafts | `useDraftsStore` (`features/chat/store/drafts.ts`) | AsyncStorage `chat_drafts` | Composer |
+| Upload progress (per `clientUploadId`) | `useUploadProgressStore` (`shared/store/upload-progress.ts`) | AsyncStorage `media_upload_progress` | `MediaService.uploadMedia` stages: authorized → transferred → completed |
 | Session (tokens, user) | `TokenManager` (tokens) + `AuthContext` (user, status) | SecureStore `authToken` | Auth flows; `endSession` on logout or rejected credentials |
 
 ## Ordering rules
@@ -18,6 +19,7 @@ Each kind of data has exactly one writable owner. Other layers read from that ow
 - **Merge, don't replace.** A fetched message page is merged into the cached list, so socket messages and older cached messages survive a refetch. If the newest page doesn't overlap the cache and older pages exist, messages were missed while away. In that case the stale history is dropped instead of leaving a silent gap.
 - **Catch up on reconnect.** `useConversationSync` refetches the newest page whenever the socket reconnects.
 - **One logical send, one message.** Retries reuse the outbox entry's `clientMessageId`, and attachments already uploaded keep their `mediaId`. A send whose HTTP response is lost is reconciled by its own socket echo.
+- **Newest revision wins.** Two copies of a message are resolved by `isNewerRevision`. The higher server `version` wins; a versioned snapshot beats an unversioned copy; and with no versions, the incoming copy wins unless it would undo a deletion. A delayed old page can't revert an edit, a reaction or a deletion.
 - **Only success is authoritative.** Persisted queries are restricted to `status === "success"`. A loading or failed query keeps its previous data instead of writing an empty list.
 
 ## Account isolation
@@ -31,4 +33,12 @@ Each kind of data has exactly one writable owner. Other layers read from that ow
 
 Each account persists under its own storage key, so account B never restores account A's snapshot. The realtime socket lives inside the `(app)` group and disconnects when the session ends.
 
-Query keys are not prefixed with the user id. Isolation relies on the steps above. Phase 3 adds a session generation counter, so token refreshes that resolve after logout are also rejected.
+Query keys are not prefixed with the user id. Isolation relies on the steps above and on session ownership (below).
+
+## Session ownership
+
+`TokenManager` keeps a session generation. It changes on every login, logout and rejected credential, including logging out and back into the same account. Async work belongs to the generation that started it:
+
+- **HTTP** (`core/network/api.ts`). Every session-bound request records its generation when it is sent. Callers can pin one with `{ sessionGeneration }`, and a request pinned to an ended session is refused before it is sent. Responses, including 401s, that arrive after their session ended are rejected with `StaleSessionError` before any refresh, retry, token clearing or data delivery. A refresh that finishes in a newer session never replays the old request.
+- **Continuations.** `TokenManager.captureSession()` returns a handle that work checks after every await, before its next request or write: outbox delivery (`deliverOutboxEntry`), staged uploads, avatar assignment, profile revalidation and push registration. Stale work stops silently and writes nothing to the next session's outbox, caches or upload progress.
+- **Logout** ends the local session first: it clears tokens (a new generation) and runs `endSession`. Then, in the background, it unregisters push and revokes the refresh token using the old session's captured credentials (`authOverride`), each step with its own time limit. A newer login is never blocked or affected.

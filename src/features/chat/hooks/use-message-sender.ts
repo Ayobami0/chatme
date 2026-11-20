@@ -65,10 +65,11 @@ export function useMessageSender(
 
   // Resume sends interrupted by a restart, once the outbox is loaded and whenever we reconnect.
   useEffect(() => {
-    const flush = () => flushInterruptedSends(queryClient, conversationId);
+    if (!user) return;
+    const flush = () => flushInterruptedSends(queryClient, conversationId, user.id);
     if (useOutboxStore.persist.hasHydrated()) flush();
     return useOutboxStore.persist.onFinishHydration(flush);
-  }, [queryClient, conversationId, options.reconnectVersion]);
+  }, [queryClient, conversationId, options.reconnectVersion, user]);
 
   const send = useCallback(
     (text: string, kind: MessageKind, attachments: OutboxAttachment[] = []) => {
@@ -84,14 +85,16 @@ export function useMessageSender(
         createdAt: new Date().toISOString(),
         status: "pending",
       });
-      void deliverOutboxEntry(queryClient, clientMessageId);
+      void deliverOutboxEntry(queryClient, clientMessageId, user.id);
     },
     [conversationId, queryClient, user],
   );
 
   const retry = useCallback(
-    (clientMessageId: string) => void deliverOutboxEntry(queryClient, clientMessageId),
-    [queryClient],
+    (clientMessageId: string) => {
+      if (user) void deliverOutboxEntry(queryClient, clientMessageId, user.id);
+    },
+    [queryClient, user],
   );
 
   const discard = useCallback(

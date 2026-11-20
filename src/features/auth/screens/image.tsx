@@ -5,6 +5,9 @@ import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { useUpload } from "@shared/hooks/use-upload";
 import { AuthService } from "@services/auth";
+import { MediaService, UploadExpiredError } from "@services/media";
+import { TokenManager } from "@services/token-manager";
+import { isStaleSession } from "@core/network/errors";
 import { useAuth } from "@shared/context/auth-context";
 import { log } from "@core/logging";
 import { PickedImage } from "@shared/utils/media-file";
@@ -31,16 +34,28 @@ export default function ProfileImageScreen() {
   const { upload } = useUpload("profile_avatar");
 
   const attach = async (image: PickedImage, clientUploadId: string) => {
+    // Every stage runs for the session that started it; a newer session never sees the result.
+    const session = TokenManager.captureSession();
     setState({ status: "uploading", image, clientUploadId });
     try {
-      const media = await upload({ ...image, clientUploadId });
+      // Retrying with the same id resumes the staged upload (no second transfer).
+      const media = await upload({ ...image, clientUploadId, session });
+      session.assertCurrent();
       // A completed upload is only a media asset; it must be assigned to become the avatar.
-      const user = await AuthService.setProfileAvatar({ mediaId: media.id });
-      setUser(user);
+      const user = await AuthService.setProfileAvatar(
+        { mediaId: media.id },
+        { sessionGeneration: session.generation },
+      );
+      session.assertCurrent();
+      setUser(user, session);
+      MediaService.forgetUpload(clientUploadId);
       setState({ status: "attached", avatarUrl: user.avatarUrl ?? media.secureUrl ?? image.uri });
     } catch (err) {
+      if (isStaleSession(err) || !session.isCurrent()) return;
       log.warn("Failed to set profile photo", (err as Error)?.message);
-      setState({ status: "failed", image, clientUploadId });
+      // An expired authorization can't be resumed; the retry starts a fresh upload.
+      const retryId = err instanceof UploadExpiredError ? Crypto.randomUUID() : clientUploadId;
+      setState({ status: "failed", image, clientUploadId: retryId });
     }
   };
 

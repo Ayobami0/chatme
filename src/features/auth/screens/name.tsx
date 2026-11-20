@@ -15,6 +15,7 @@ import { useUpdateProfile } from "../query";
 import { SolidUserSvg } from "@shared/components/svgs/icons";
 import { router } from "expo-router";
 import { useAuth } from "@shared/context/auth-context";
+import { TokenManager } from "@services/token-manager";
 
 export default function ProfileNameScreen() {
   const { setStage } = useAuthFlowStore();
@@ -22,14 +23,16 @@ export default function ProfileNameScreen() {
   const { setUser, setProfileFlowStage } = useAuth();
 
   const submit = async (value: z.infer<typeof fullNameSchema>) => {
+    const session = TokenManager.captureSession();
     mutate(
       { displayName: value.fullName },
       {
         onSuccess: async (user) => {
+          if (!session.isCurrent()) return;
           // Record the photo step first so the guard keeps profile setup open
           // even if the server now considers the profile complete.
           await setProfileFlowStage("image");
-          setUser(user);
+          setUser(user, session);
           setStage("image");
           router.replace("/profile-image");
         },
@@ -54,14 +57,13 @@ export default function ProfileNameScreen() {
       <AppHeader onBack={router.canGoBack() ? router.back : undefined} />
       <View className="pt-6 flex-1">
         <AppText variant="h3" className="pb-3">
-          What's your name?
+          What&apos;s your name?
         </AppText>
         <AppText color="subtext" variant="body-md-regular" className="pb-6">
           Write your name. You can change it back in settings.
         </AppText>
-        <Field
-          name="fullName"
-          children={(field) => (
+        <Field name="fullName">
+          {(field) => (
             <AppTextField
               label="Name"
               placeholder="Name"
@@ -73,10 +75,10 @@ export default function ProfileNameScreen() {
               )}
             />
           )}
-        />
+        </Field>
         <View className="flex-1 justify-end w-full">
-          <Subscribe
-            children={({ canSubmit, values }) => (
+          <Subscribe>
+            {({ canSubmit, values }) => (
               <AppButton
                 className="w-full"
                 isLoading={isPending}
@@ -88,7 +90,7 @@ export default function ProfileNameScreen() {
                 Next
               </AppButton>
             )}
-          />
+          </Subscribe>
         </View>
       </View>
     </AppView>

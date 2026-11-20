@@ -76,8 +76,10 @@ describe("useDeviceContactMatches", () => {
   it("reports denied permission", async () => {
     (Contacts.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied" });
 
-    const { result } = await renderHook(() => useDeviceContactMatches());
-    await waitFor(() => expect(result.current.status).toBe("denied"));
+    // Not awaited: awaiting would let the permission result land outside act().
+    const { result } = renderHook(() => useDeviceContactMatches());
+    await act(async () => undefined);
+    expect(result.current.status).toBe("denied");
     expect(matchContacts).not.toHaveBeenCalled();
   });
 });

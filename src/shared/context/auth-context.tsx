@@ -14,11 +14,11 @@ import {
   StoredAuthTokens,
 } from "@shared/types/authState";
 import { UserModel } from "@shared/types/models";
-import { TokenManager } from "@services/token-manager";
+import { SessionHandle, TokenManager } from "@services/token-manager";
 import { AuthService } from "@services/auth";
 import StorageService, { StorageKey } from "@services/storage";
 import { endSession } from "@shared/session/end-session";
-import { isCredentialRejection } from "@core/network/errors";
+import { isCredentialRejection, isStaleSession } from "@core/network/errors";
 import { withTimeout } from "@shared/utils/async";
 import { log } from "@logging";
 import { unregisterFromPushNotifications } from "@features/notifications/push-registration";
@@ -36,8 +36,11 @@ interface AuthContextType extends AppSessionState {
     refreshToken: string;
     accessToken: string;
   }) => Promise<void>;
-  /** Replaces the signed-in user with a fresh profile from the server. */
-  setUser: (user: UserModel) => void;
+  /**
+   * Replaces the signed-in user with a fresh profile from the server. Pass the
+   * session that requested it so a late response can't overwrite a newer user.
+   */
+  setUser: (user: UserModel, session?: SessionHandle) => void;
   /** Records the next profile-setup step so it survives restarts. */
   setProfileFlowStage: (stage: ProfileFlowStage) => Promise<void>;
   /** Ends profile setup; route guards then move the user into the app. */
@@ -62,6 +65,23 @@ const profileState = (user: UserModel) => ({
   user,
   profileStatus: user.profileComplete ? ("complete" as const) : ("incomplete" as const),
 });
+
+/** Best-effort server cleanup for a session that has already ended locally. */
+async function cleanUpRemoteSession(ended: { accessToken?: string; refreshToken?: string }) {
+  if (ended.accessToken) {
+    // The push registration is bound to the login being revoked; unregister it first.
+    await withTimeout(
+      unregisterFromPushNotifications(ended.accessToken),
+      LOGOUT_REVOKE_TIMEOUT_MS,
+    ).catch((error) => log.warn("Push unregister failed", error?.message));
+  }
+  if (ended.refreshToken) {
+    await withTimeout(
+      AuthService.logout({ refreshToken: ended.refreshToken }),
+      LOGOUT_REVOKE_TIMEOUT_MS,
+    ).catch((error) => log.warn("Server logout failed", error?.message));
+  }
+}
 
 const cacheUser = (user: UserModel) =>
   StorageService.save(StorageKey.CachedUser, user).catch(() => undefined);
@@ -118,8 +138,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * the session; connectivity or server errors fall back to the cached profile.
    */
   const revalidateProfile = useCallback(async () => {
+    // A slow response must not land in a newer session (another account, or a re-login).
+    const session = TokenManager.captureSession();
     try {
-      const profile = await AuthService.getProfile();
+      const profile = await AuthService.getProfile({ sessionGeneration: session.generation });
+      if (!session.isCurrent()) return;
       void cacheUser(profile);
       setSessionState((prev) => ({
         ...prev,
@@ -131,6 +154,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         startupFailed: false,
       }));
     } catch (error) {
+      if (isStaleSession(error) || !session.isCurrent()) return;
+
       if (isCredentialRejection(error)) {
         if (TokenManager.getRefreshToken()) {
           await TokenManager.clearTokens().catch(() => undefined);
@@ -148,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cachedUser = await StorageService.get<UserModel>(
         StorageKey.CachedUser,
       ).catch(() => undefined);
+      if (!session.isCurrent()) return;
 
       setSessionState((prev) => {
         const user = prev.user ?? cachedUser;
@@ -190,22 +216,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [shouldRetry, revalidateProfile]);
 
   const logout = async () => {
-    // Unregister while the session can still authenticate the request.
-    await withTimeout(unregisterFromPushNotifications(), LOGOUT_REVOKE_TIMEOUT_MS).catch(
-      (error) => log.warn("Push unregister failed", error?.message),
-    );
-
-    const refreshToken = TokenManager.getRefreshToken();
-    if (refreshToken) {
-      // Best effort: revoke server-side, but never block logout on the network.
-      await withTimeout(
-        AuthService.logout({ refreshToken }),
-        LOGOUT_REVOKE_TIMEOUT_MS,
-      ).catch((error) => log.warn("Server logout failed", error?.message));
-    }
-
+    // Capture the ending session's credentials, then end it locally first: nothing it
+    // started can act or publish after this point, and the UI moves on immediately.
+    const { accessToken, refreshToken } = TokenManager.getTokens();
     await TokenManager.clearTokens().catch(() => undefined);
     await endLocalSession();
+
+    // Remote cleanup runs in the background with the captured credentials (never the
+    // current session's), each step bounded, so it can't block or affect a newer login.
+    void cleanUpRemoteSession({ accessToken, refreshToken });
   };
 
   const refreshTokens = async () => {
@@ -277,7 +296,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const setUser = (user: UserModel) => {
+  const setUser = (user: UserModel, session?: SessionHandle) => {
+    if (session && !session.isCurrent()) return;
     void cacheUser(user);
     setSessionState((prev) => ({ ...prev, ...profileState(user) }));
   };

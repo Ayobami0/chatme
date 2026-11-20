@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from "axios";
 import { apiClient } from "@core/network/api";
 import {
   AddGroupMembersDto,
@@ -271,10 +272,12 @@ export class ConversationService {
   static async sendMessage(
     conversationID: string,
     data: ConversationMessagePostRequest,
+    config?: AxiosRequestConfig,
   ): Promise<MessageModel> {
     const response = await apiClient.post<MessageModel>(
       `/conversations/${conversationID}/messages`,
       data,
+      config,
     );
     return response.data;
   }

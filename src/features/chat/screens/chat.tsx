@@ -167,6 +167,7 @@ export default function ChatScreen(props: ChatScreenProps) {
         isLoading={sync.isLoading}
         hasOlder={sync.hasOlder}
         isFetchingOlder={sync.isFetchingOlder}
+        olderFailed={Boolean(sync.olderError)}
         onLoadOlder={() => void sync.fetchOlder()}
         onFailedPress={onFailedPress}
       />
@@ -290,6 +291,7 @@ function ChatBody(props: {
   isLoading: boolean;
   hasOlder: boolean;
   isFetchingOlder: boolean;
+  olderFailed: boolean;
   onLoadOlder: () => void;
   onFailedPress: (message: LocalMessage) => void;
 }) {
@@ -366,10 +368,26 @@ function ChatBody(props: {
       showsVerticalScrollIndicator={false}
       // Stay pinned to the newest message only while the user is already near it.
       maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
-      onEndReached={props.hasOlder ? props.onLoadOlder : undefined}
+      // After a failure, wait for an explicit Retry instead of re-firing on every scroll.
+      onEndReached={props.hasOlder && !props.olderFailed ? props.onLoadOlder : undefined}
       onEndReachedThreshold={0.5}
       ListHeaderComponent={typing ? <TypingChatBubble forGroup={isGroupChat} /> : null}
-      ListFooterComponent={props.isFetchingOlder ? <ActivityIndicator className="py-2" /> : null}
+      ListFooterComponent={
+        props.isFetchingOlder ? (
+          <ActivityIndicator className="py-2" />
+        ) : props.olderFailed ? (
+          <View className="items-center py-2 gap-1">
+            <AppText variant="body-sm-regular" color="subtext">
+              Couldn&apos;t load older messages
+            </AppText>
+            <Pressable onPress={props.onLoadOlder} accessibilityRole="button">
+              <AppText variant="body-sm-medium" color="primary">
+                Retry
+              </AppText>
+            </Pressable>
+          </View>
+        ) : null
+      }
       renderItem={({ item, index }) => {
         const older = rows[index + 1]?.message;
         const dateLabel = formatMessageDateSeparator(item.message.createdAt);

@@ -63,10 +63,11 @@ describe("registerForPushNotifications", () => {
     await expect(registerForPushNotifications()).resolves.toBe("registered");
 
     expect(N.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: "proj-1" });
-    expect(PushService.registerDevice).toHaveBeenCalledWith(await getInstallationId(), {
-      platform: "ios",
-      token: "ExponentPushToken[abc]",
-    });
+    expect(PushService.registerDevice).toHaveBeenCalledWith(
+      await getInstallationId(),
+      { platform: "ios", token: "ExponentPushToken[abc]" },
+      { sessionGeneration: expect.any(Number) },
+    );
   });
 
   it("does not register when permission is denied", async () => {
