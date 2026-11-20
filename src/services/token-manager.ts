@@ -1,6 +1,6 @@
 import axios from "axios";
 import { AppConfig } from "@core/config";
-import { isCredentialRejection } from "@core/network/errors";
+import { isCredentialRejection, StaleSessionError } from "@core/network/errors";
 import { log } from "@logging";
 import StorageService, { StorageKey } from "./storage";
 import { StoredAuthTokens } from "@shared/types/authState";
@@ -32,7 +32,40 @@ const persistTokens = async (tokens: StoredAuthTokens) => {
   await StorageService.secureSave(StorageKey.AuthToken, tokens);
 };
 
+/**
+ * A handle on the session that started some piece of async work. Check it after
+ * every await, before the next request or write, so old work can't act for (or
+ * publish into) a newer session, including a re-login to the same account.
+ */
+export type SessionHandle = {
+  generation: number;
+  isCurrent: () => boolean;
+  /** Throws `StaleSessionError` if the session has changed. */
+  assertCurrent: () => void;
+};
+
 export class TokenManager {
+  static getSessionGeneration(): number {
+    return sessionGeneration;
+  }
+
+  static isCurrentSession(generation: number): boolean {
+    return generation === sessionGeneration;
+  }
+
+  /** Captures the current session for async work that must not outlive it. */
+  static captureSession(): SessionHandle {
+    const generation = sessionGeneration;
+    const isCurrent = () => generation === sessionGeneration;
+    return {
+      generation,
+      isCurrent,
+      assertCurrent: () => {
+        if (!isCurrent()) throw new StaleSessionError();
+      },
+    };
+  }
+
   static setOnUnauthenticatedListener(listener: (() => void) | null): void {
     unauthenticatedListener = listener;
   }

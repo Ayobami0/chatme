@@ -40,16 +40,23 @@ jest.mock("expo-router", () => ({
   router: { canGoBack: () => false, back: jest.fn(), dismissTo: jest.fn() },
 }));
 
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { TokenManager } from "@services/token-manager";
 import React from "react";
 import { AuthService } from "@services/auth";
 import ProfileImageScreen from "../image";
 
 const setProfileAvatar = AuthService.setProfileAvatar as jest.Mock;
 
+/** Presses inside an async act, so the async work they start settles within it. */
+const press = (text: string) =>
+  act(async () => {
+    fireEvent.press(await screen.findByText(text));
+  });
+
 const choosePhoto = async () => {
-  await fireEvent.press(screen.getByText("Upload Photo"));
-  await fireEvent.press(screen.getByText("pick"));
+  await press("Upload Photo");
+  await press("pick");
 };
 
 describe("ProfileImageScreen", () => {
@@ -73,7 +80,7 @@ describe("ProfileImageScreen", () => {
     await render(<ProfileImageScreen />);
 
     await choosePhoto();
-    await fireEvent.press(await screen.findByText("Try again"));
+    await press("Try again");
     await screen.findByText("Next");
 
     const [first, second] = mockUpload.mock.calls.map(([arg]) => arg.clientUploadId);
@@ -87,10 +94,13 @@ describe("ProfileImageScreen", () => {
     await render(<ProfileImageScreen />);
 
     await choosePhoto();
-    await fireEvent.press(await screen.findByText("Next"));
+    await press("Next");
 
-    expect(setProfileAvatar).toHaveBeenCalledWith({ mediaId: "media-1" });
-    expect(mockSetUser).toHaveBeenCalledWith(user);
+    expect(setProfileAvatar).toHaveBeenCalledWith(
+      { mediaId: "media-1" },
+      { sessionGeneration: expect.any(Number) },
+    );
+    expect(mockSetUser).toHaveBeenCalledWith(user, expect.objectContaining({ generation: expect.any(Number) }));
     expect(mockCompleteProfileSetup).toHaveBeenCalled();
   });
 
@@ -103,5 +113,33 @@ describe("ProfileImageScreen", () => {
 
     expect(await screen.findByText("Try again")).toBeTruthy();
     expect(screen.queryByText("Next")).toBeNull();
+  });
+
+  it("retries a failed avatar assignment with the same upload id", async () => {
+    mockUpload.mockResolvedValue({ id: "media-1" });
+    setProfileAvatar.mockRejectedValueOnce(new Error("500")).mockResolvedValueOnce({ id: "u1" });
+    await render(<ProfileImageScreen />);
+
+    await choosePhoto();
+    await press("Try again");
+    await screen.findByText("Next");
+
+    // Same id: the staged upload resumes from "completed" instead of transferring again.
+    const [first, second] = mockUpload.mock.calls.map(([arg]) => arg.clientUploadId);
+    expect(second).toBe(first);
+    expect(setProfileAvatar).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops before assigning the avatar if the session changed during the upload", async () => {
+    let finishUpload!: (media: unknown) => void;
+    mockUpload.mockReturnValue(new Promise((resolve) => (finishUpload = resolve)));
+    await render(<ProfileImageScreen />);
+
+    await choosePhoto();
+    await act(() => TokenManager.setTokens({ accessToken: "B", refreshToken: "rB" }));
+    await act(async () => finishUpload({ id: "media-1" }));
+
+    expect(setProfileAvatar).not.toHaveBeenCalled();
+    expect(mockSetUser).not.toHaveBeenCalled();
   });
 });

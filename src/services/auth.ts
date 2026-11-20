@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from "axios";
 import { apiClient } from "@core/network/api";
 import {
   BlockListResponseDto,
@@ -66,15 +67,16 @@ export class AuthService {
     return r.data;
   }
 
-  static async getProfile(): Promise<UserGetResponse> {
-    const r = await apiClient.get<UserGetResponse>("/me");
+  static async getProfile(config?: AxiosRequestConfig): Promise<UserGetResponse> {
+    const r = await apiClient.get<UserGetResponse>("/me", config);
     return r.data;
   }
 
   static async setProfileAvatar(
     data: SetProfileAvatarRequest,
+    config?: AxiosRequestConfig,
   ): Promise<UserGetResponse> {
-    const r = await apiClient.put<UserGetResponse>("/me/avatar", data);
+    const r = await apiClient.put<UserGetResponse>("/me/avatar", data, config);
     return r.data;
   }
 

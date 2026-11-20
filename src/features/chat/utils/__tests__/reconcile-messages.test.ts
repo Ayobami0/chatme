@@ -1,5 +1,5 @@
 import { ConversationModel, MessageModel } from "@shared/types/models";
-import { reconcileMessages, withLatestMessage } from "../reconcile-messages";
+import { mergeLatestPage, reconcileMessages, withLatestMessage } from "../reconcile-messages";
 
 const msg = (overrides: Partial<MessageModel>): MessageModel => ({
   id: "m1",
@@ -66,5 +66,56 @@ describe("withLatestMessage", () => {
       msg({ id: "m9", text: null, attachments: [{} as never], createdAt: "2026-01-01T00:00:09.000Z" }),
     )!;
     expect(result.latestMessage?.preview).toBe("Attachment");
+  });
+});
+
+describe("revision ordering", () => {
+  const v = (version: number | undefined, overrides: Partial<MessageModel> = {}) =>
+    msg({ id: "m1", version, ...overrides });
+
+  it("keeps a newer edit when an older HTTP page arrives late", () => {
+    const edited = v(2, { text: "edited", editedAt: "2026-01-01T00:01:00Z" });
+    const [kept] = reconcileMessages([edited], [v(1, { text: "original" })]);
+    expect(kept.text).toBe("edited");
+  });
+
+  it("keeps a deletion tombstone when an older response arrives late", () => {
+    const deleted = v(3, { text: null, deletedAt: "2026-01-01T00:02:00Z" });
+    const [kept] = reconcileMessages([deleted], [v(2, { text: "edited" })]);
+    expect(kept.deletedAt).toBe("2026-01-01T00:02:00Z");
+    expect(kept.text).toBeNull();
+  });
+
+  it("applies newer revisions, including reactions and deletion", () => {
+    const reacted = v(2, { reactions: [{ userId: "u2", emoji: "👍" }] });
+    expect(reconcileMessages([v(1)], [reacted])[0].reactions).toHaveLength(1);
+    const deleted = v(3, { text: null, deletedAt: "2026-01-01T00:02:00Z" });
+    expect(reconcileMessages([reacted], [deleted])[0].deletedAt).toBeTruthy();
+  });
+
+  it("replaces an unversioned copy with a versioned server snapshot", () => {
+    expect(reconcileMessages([v(undefined, { text: "local" })], [v(0, { text: "server" })])[0].text).toBe(
+      "server",
+    );
+  });
+
+  it("does not let an unversioned copy overwrite a versioned one", () => {
+    expect(reconcileMessages([v(4, { text: "server" })], [v(undefined, { text: "stale" })])[0].text).toBe(
+      "server",
+    );
+  });
+
+  it("never un-deletes when neither copy has a version", () => {
+    const deleted = v(undefined, { text: null, deletedAt: "2026-01-01T00:02:00Z" });
+    expect(reconcileMessages([deleted], [v(undefined, { text: "old" })])[0].deletedAt).toBeTruthy();
+  });
+
+  it("protects newer revisions when a delayed latest page is merged", () => {
+    const edited = v(2, { text: "edited" });
+    const merged = mergeLatestPage(
+      { items: [edited], olderCursor: null },
+      { items: [v(1, { text: "original" })], pageInfo: { nextCursor: null, hasNextPage: false } },
+    );
+    expect(merged.items[0].text).toBe("edited");
   });
 });

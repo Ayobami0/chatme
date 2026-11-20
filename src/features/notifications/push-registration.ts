@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { PushService } from "@services/push";
 import { log } from "@logging";
 import { getInstallationId } from "./installation-id";
+import { SessionHandle, TokenManager } from "@services/token-manager";
 
 export const MESSAGES_CHANNEL_ID = "messages";
 
@@ -25,7 +26,10 @@ async function ensurePermission(): Promise<boolean> {
  * repeat: the server rotates the token for the same installation id. Pass `token`
  * when it is already known (e.g. from a token-change event).
  */
-export async function registerForPushNotifications(token?: string): Promise<PushRegistrationResult> {
+export async function registerForPushNotifications(
+  token?: string,
+  session: SessionHandle = TokenManager.captureSession(),
+): Promise<PushRegistrationResult> {
   if (Platform.OS !== "ios" && Platform.OS !== "android") return "unavailable";
   if (!Device.isDevice) return "unavailable";
 
@@ -46,14 +50,24 @@ export async function registerForPushNotifications(token?: string): Promise<Push
   }
 
   const expoToken = token ?? (await Notifications.getExpoPushTokenAsync({ projectId: id })).data;
-  await PushService.registerDevice(await getInstallationId(), {
-    platform: Platform.OS,
-    token: expoToken,
-  });
+  const installationId = await getInstallationId();
+  // Register only for the login that started this; a newer login registers itself.
+  session.assertCurrent();
+  await PushService.registerDevice(
+    installationId,
+    { platform: Platform.OS, token: expoToken },
+    { sessionGeneration: session.generation },
+  );
   return "registered";
 }
 
-/** Best effort: the server also drops registrations when the login is revoked. */
-export async function unregisterFromPushNotifications() {
-  await PushService.unregisterDevice(await getInstallationId());
+/**
+ * Best effort: the server also drops registrations when the login is revoked. Pass
+ * the ended session's access token to clean up after it has been cleared locally.
+ */
+export async function unregisterFromPushNotifications(accessToken?: string) {
+  await PushService.unregisterDevice(
+    await getInstallationId(),
+    accessToken ? { authOverride: accessToken } : undefined,
+  );
 }

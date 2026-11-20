@@ -44,6 +44,7 @@ export function useConversationSync(conversationId: string) {
     isLoading: messagesQuery.isPending,
     hasOlder: messagesQuery.hasOlder,
     isFetchingOlder: messagesQuery.isFetchingOlder,
+    olderError: messagesQuery.olderError,
     fetchOlder: messagesQuery.fetchOlder,
     reconcileVersion,
   };

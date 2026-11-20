@@ -11,9 +11,9 @@ A service method existing doesn't make a feature complete. Each row tracks the f
 | Pin / archive / mute (list) | ✅ | ✅ | ✅ | ✅ | Real outcome toasts; failed items stay selected |
 | Mute (chat info switch) | ✅ | ✅ | ✅ | 🟡 | Reverts on failure; no error toast |
 | Send text message | ✅ | ✅ | ✅ | ✅ | Persisted outbox, retry, restart resume |
-| Send image (recent photos, library) | ✅ | ✅ | ✅ | ✅ | Real size/type; HEIC converted to JPEG; upload id reused on retry |
+| Send image (recent photos, library) | ✅ | ✅ | ✅ | ✅ | Real size/type; HEIC converted to JPEG; staged upload resumes after failures; expired authorization restarts once |
 | Documents / audio / video | ✅ | ❌ | ❌ | ❌ | "Document" action hidden |
-| Message history paging | ✅ | ✅ | ✅ | 🟡 | Older-page errors are not surfaced yet |
+| Message history paging | ✅ | ✅ | ✅ | ✅ | Older-page failures show "Couldn't load older messages · Retry" |
 | Read receipts (outgoing) | ✅ | ✅ | — | 🟡 | Marked on focus/foreground/new incoming message |
 | Typing indicators | ✅ | ✅ | ✅ | — | Throttled start, idle/blur/send/unmount stop |
 | Presence | ✅ | ✅ | ✅ | — | Direct chats only |
@@ -22,7 +22,7 @@ A service method existing doesn't make a feature complete. Each row tracks the f
 | Chat info: photos, starred, links | 🟡 | ❌ | ❌ | ❌ | Rows (with hardcoded counts) hidden |
 | Voice / video calls | ❌ | ❌ | ❌ | ❌ | Header buttons hidden |
 | Group description | ❌ | ❌ | ❌ | ❌ | Not in create/update DTOs; field hidden |
-| Avatar upload (profile) | ✅ | ✅ | ✅ | ✅ | Upload → `PUT /me/avatar` → session user; retry keeps upload id |
+| Avatar upload (profile) | ✅ | ✅ | ✅ | ✅ | Staged upload → `PUT /me/avatar` → session user, all pinned to the session; assignment retry reuses the completed asset |
 | Group avatar (create / edit) | ✅ | ✅ | ✅ | 🟡 | Optional on create; errors shown as toast |
 | PIN lock | ❌ | ❌ | ❌ | ❌ | Prompt and route removed until secure storage and an app lock exist |
 | Push notifications | ✅ | ✅ | ✅ | 🟡 | Registers per login, unregisters on logout, routes taps (cold start too). Needs an EAS projectId; tap payload assumed `data.conversationId` |

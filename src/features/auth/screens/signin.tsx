@@ -53,7 +53,7 @@ export default function SignInScreen() {
     <AppView withSafeArea className="p-0">
       <View className="flex flex-col h-full items-start px-6 pt-16">
         <AppText variant="h3" className="pb-3">
-          What's your phone number?
+          What&apos;s your phone number?
         </AppText>
         <AppText color="subtext" variant="body-md-regular" className="pb-6">
           We will send you the verification code.
@@ -70,8 +70,8 @@ export default function SignInScreen() {
           )}
         </Field>
         <View className="flex-1 justify-end w-full">
-          <Subscribe
-            children={({ canSubmit, values }) => (
+          <Subscribe>
+            {({ canSubmit, values }) => (
               <AppButton
                 className="w-full"
                 isLoading={isPending}
@@ -83,7 +83,7 @@ export default function SignInScreen() {
                 Next
               </AppButton>
             )}
-          />
+          </Subscribe>
         </View>
       </View>
     </AppView>
