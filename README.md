@@ -84,9 +84,9 @@ pnpm run verify                  # typecheck + lint + tests, as run in CI and be
 
 ### How tests are set up
 
-- Jest config lives in `package.json` (`jest` key): the `jest-expo` preset, tests discovered as `src/**/__tests__/**/*.test.ts(x)`, and coverage collected from `src` (excluding `src/app` routes and generated SVG icons).
-- Tests live next to the code they check, in `__tests__` folders, and never under `src/app` (Expo Router would treat them as routes).
-- `jest.setup.js` mocks AsyncStorage only. `.svg` imports map to `jest/svg-mock.js` because Jest doesn't run Metro's SVG transformer. Network, clock and storage are controlled per test; the application logic under test stays real.
+- Jest config lives in `package.json` (`jest` key): the `jest-expo` preset, tests discovered as `tests/**/*.test.ts(x)`, and coverage collected from `src` (excluding `src/app` routes and generated SVG icons).
+- Tests live in `tests/`, mirroring `src/` (e.g. `src/features/chat/utils/can-send-message.ts` is tested in `tests/features/chat/utils/can-send-message.test.ts`). They import app code through the path aliases (`@features/…`, `@shared/…`, `@services/…`, `@core/…`). Keeping them out of `src` also keeps them out of `src/app`, where Expo Router would treat them as routes.
+- `jest.setup.js` (project root) mocks AsyncStorage only. `.svg` imports map to `tests/mocks/svg.js` because Jest doesn't run Metro's SVG transformer. Network, clock and storage are controlled per test; the application logic under test stays real.
 
 ### Before pushing
 

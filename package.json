@@ -85,7 +85,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -102,20 +102,20 @@
   "jest": {
     "preset": "jest-expo",
     "roots": [
-      "<rootDir>/src"
+      "<rootDir>/src",
+      "<rootDir>/tests"
     ],
     "testMatch": [
-      "**/__tests__/**/*.test.[jt]s?(x)"
+      "<rootDir>/tests/**/*.test.[jt]s?(x)"
     ],
     "testPathIgnorePatterns": [
-      "/node_modules/",
-      "<rootDir>/src/app/"
+      "/node_modules/"
     ],
     "setupFiles": [
       "<rootDir>/jest.setup.js"
     ],
     "moduleNameMapper": {
-      "\\.svg$": "<rootDir>/jest/svg-mock.js",
+      "\\.svg$": "<rootDir>/tests/mocks/svg.js",
       "^@core/(.*)$": "<rootDir>/src/core/$1",
       "^@constants$": "<rootDir>/src/shared/constants.ts",
       "^@components$": "<rootDir>/src/shared/components/index.ts",
@@ -128,7 +128,6 @@
     "collectCoverageFrom": [
       "src/**/*.{ts,tsx}",
       "!src/app/**",
-      "!src/**/__tests__/**",
       "!src/**/*.d.ts",
       "!src/shared/components/svgs/**"
     ],
