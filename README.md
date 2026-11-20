@@ -4,10 +4,10 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 ## Get started
 
-1. Install dependencies
+1. Install dependencies (this project uses pnpm; see [Testing](#testing))
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 2. Start the app
@@ -54,3 +54,47 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Testing
+
+### Required versions
+
+| Tool | Version | Source |
+| --- | --- | --- |
+| Node.js | 24.x (CI uses 24) | `.github/workflows/testing.yml` |
+| pnpm | 10.33.0 | `package.json` `packageManager`, `pnpm-lock.yaml` |
+| Expo SDK | 55 (`expo ~55.0.29`) | `package.json` |
+| React / React Native | 19.2.0 / 0.83.10 | `package.json` |
+| TypeScript | ~5.9.3 | `package.json` |
+| Jest / jest-expo | 29.7 / ~55.0.22 | `package.json` |
+| React Native Testing Library | 13.3 | `package.json` |
+
+Use pnpm only; `pnpm-lock.yaml` is the single lockfile.
+
+### Commands
+
+```bash
+pnpm install --frozen-lockfile   # install exactly what the lockfile pins
+pnpm test                        # run all tests
+pnpm exec jest <file>            # run one file, e.g. pnpm exec jest message-composer.test.tsx
+pnpm run test:watch              # rerun on change (local only)
+pnpm run test:coverage           # coverage report in coverage/ (git-ignored)
+pnpm run verify                  # typecheck + lint + tests, as run in CI and before push
+```
+
+### How tests are set up
+
+- Jest config lives in `package.json` (`jest` key): the `jest-expo` preset, tests discovered as `src/**/__tests__/**/*.test.ts(x)`, and coverage collected from `src` (excluding `src/app` routes and generated SVG icons).
+- Tests live next to the code they check, in `__tests__` folders, and never under `src/app` (Expo Router would treat them as routes).
+- `jest.setup.js` mocks AsyncStorage only. `.svg` imports map to `jest/svg-mock.js` because Jest doesn't run Metro's SVG transformer. Network, clock and storage are controlled per test; the application logic under test stays real.
+
+### Before pushing
+
+`pnpm run verify` must pass. A pre-push hook runs it automatically. Enable it once per clone:
+
+```bash
+git config --local core.hooksPath .githooks
+```
+
+GitHub Actions (`.github/workflows/testing.yml`) runs the same `verify` on every push and pull request.
+
