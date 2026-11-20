@@ -2,6 +2,7 @@
   "name": "chatme",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "packageManager": "pnpm@10.33.0",
   "dependencies": {
     "@expo/dom-webview": "~55.0.6",
     "@expo/metro-runtime": "~55.0.12",
@@ -84,9 +85,13 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --runInBand",
+    "test:coverage": "jest --coverage",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run test:ci"
   },
   "private": true,
   "pnpm": {
@@ -96,12 +101,21 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.[jt]s?(x)"
+    ],
     "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/example/",
-      "/android/"
+      "/node_modules/"
+    ],
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
     ],
     "moduleNameMapper": {
+      "\\.svg$": "<rootDir>/tests/mocks/svg.js",
       "^@core/(.*)$": "<rootDir>/src/core/$1",
       "^@constants$": "<rootDir>/src/shared/constants.ts",
       "^@components$": "<rootDir>/src/shared/components/index.ts",
@@ -111,8 +125,12 @@
       "^@features/(.*)$": "<rootDir>/src/features/$1",
       "^@services/(.*)$": "<rootDir>/src/services/$1"
     },
-    "setupFiles": [
-      "<rootDir>/jest.setup.js"
-    ]
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/app/**",
+      "!src/**/*.d.ts",
+      "!src/shared/components/svgs/**"
+    ],
+    "coverageDirectory": "coverage"
   }
 }

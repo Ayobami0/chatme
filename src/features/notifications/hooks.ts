@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { log } from "@logging";
+import { isStaleSession } from "@core/network/errors";
 import { getActiveConversation } from "./active-conversation";
 import {
   conversationIdFromNotification,
@@ -43,6 +44,7 @@ export function usePushRegistration() {
         await registerForPushNotifications(token);
         if (active) registered.current = true;
       } catch (error) {
+        if (isStaleSession(error)) return;
         log.warn("Push registration failed", (error as Error)?.message);
       }
     };

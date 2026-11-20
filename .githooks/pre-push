@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+
+if [ -n "$(git status --porcelain)" ]; then
+  printf '%s\n' 'Push stopped: commit or resolve working-tree changes first.' >&2
+  exit 1
+fi
+
+checked_commit=$(git rev-parse HEAD)
+while read -r local_ref local_commit remote_ref remote_commit; do
+  if [ "$local_ref" = '(delete)' ]; then
+    continue
+  fi
+  if [ "$local_commit" != "$checked_commit" ]; then
+    printf '%s\n' 'Push stopped: check out and verify the branch you want to push.' >&2
+    exit 1
+  fi
+done
+
+pnpm run verify
+
+if [ -n "$(git status --porcelain)" ] || [ "$(git rev-parse HEAD)" != "$checked_commit" ]; then
+  printf '%s\n' 'Push stopped: the checked files or commit changed during verification.' >&2
+  exit 1
+fi

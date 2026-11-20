@@ -7,9 +7,26 @@ const byCreatedAt = (a: MessageModel, b: MessageModel) =>
   Date.parse(a.createdAt) - Date.parse(b.createdAt);
 
 /**
+ * Whether `incoming` should replace `current` (two copies of the same message).
+ * `version` is the server's monotonic revision for edits, deletion and reactions,
+ * so a delayed older snapshot must never overwrite a newer one:
+ * - both versioned: the higher (or equal) version wins;
+ * - only one versioned: the versioned server snapshot wins;
+ * - neither versioned: the incoming copy wins, except it can't undo a deletion.
+ */
+export function isNewerRevision(current: MessageModel, incoming: MessageModel): boolean {
+  const hasCurrent = typeof current.version === "number";
+  const hasIncoming = typeof incoming.version === "number";
+
+  if (hasCurrent && hasIncoming) return incoming.version! >= current.version!;
+  if (hasCurrent !== hasIncoming) return hasIncoming;
+  return !(current.deletedAt && !incoming.deletedAt);
+}
+
+/**
  * The single merge policy for messages from any source (HTTP page, send response,
- * socket event). Matches on server id or clientMessageId, lets incoming data win,
- * and returns the list oldest-first.
+ * socket event). Matches on server id or clientMessageId, keeps the newest revision
+ * of each message (see `isNewerRevision`), and returns the list oldest-first.
  */
 export function reconcileMessages(
   current: readonly MessageModel[],
@@ -19,10 +36,11 @@ export function reconcileMessages(
 
   for (const message of incoming) {
     const index = result.findIndex((existing) => isSameMessage(existing, message));
-    if (index >= 0) {
-      result[index] = { ...result[index], ...message };
-    } else {
+    if (index < 0) {
       result.push(message);
+    } else if (isNewerRevision(result[index], message)) {
+      // Server snapshots are complete, so replace rather than merge stale fields back in.
+      result[index] = message;
     }
   }
 

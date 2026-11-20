@@ -128,10 +128,9 @@ function OtpForm({ challenge }: { challenge: PhoneVerificationResponse }) {
           }
           .
         </AppText>
-        <Field
-          name="otp"
-          children={(field) => <AppPinInput field={field} length={codeLength} />}
-        />
+        <Field name="otp">
+          {(field) => <AppPinInput field={field} length={codeLength} />}
+        </Field>
         <View className="self-center flex-row items-center pt-8">
           <AppText color="subtext" variant="body-md-regular">
             If you don&apos;t get the code
@@ -159,8 +158,8 @@ function OtpForm({ challenge }: { challenge: PhoneVerificationResponse }) {
           )}
         </View>
         <View className="flex-1 justify-end w-full">
-          <Subscribe
-            children={({ canSubmit, values }) => (
+          <Subscribe>
+            {({ canSubmit, values }) => (
               <AppButton
                 className="w-full"
                 isLoading={isPending}
@@ -170,7 +169,7 @@ function OtpForm({ challenge }: { challenge: PhoneVerificationResponse }) {
                 Next
               </AppButton>
             )}
-          />
+          </Subscribe>
         </View>
       </View>
     </AppView>
