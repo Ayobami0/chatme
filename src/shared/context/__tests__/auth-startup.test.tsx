@@ -38,6 +38,10 @@ jest.mock("@services/storage", () => {
   };
 });
 jest.mock("@shared/session/end-session", () => ({ endSession: jest.fn(async () => undefined) }));
+const mockWarn = jest.fn();
+jest.mock("@logging", () => ({
+  log: { warn: (...args: unknown[]) => mockWarn(...args), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
+}));
 const mockCalls: string[] = [];
 jest.mock("@features/notifications/push-registration", () => ({
   unregisterFromPushNotifications: jest.fn(async (token: string) => void mockCalls.push(`unregister-push:${token}`)),
@@ -164,9 +168,19 @@ describe("logout", () => {
     (AuthService.logout as jest.Mock).mockReturnValue(new Promise(() => undefined));
 
     const auth = await startApp();
-    await act(() => auth.current.logout());
+    jest.useFakeTimers();
+    try {
+      await act(() => auth.current.logout());
+      expect(auth.current.authStatus).toBe("unauthenticated");
 
-    expect(auth.current.authStatus).toBe("unauthenticated");
+      // The background revocation gives up at its deadline instead of lingering.
+      await act(async () => {
+        jest.advanceTimersByTime(5_000);
+      });
+      expect(mockWarn).toHaveBeenCalledWith("Server logout failed", "Timed out after 5000ms");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
